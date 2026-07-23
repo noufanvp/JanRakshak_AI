@@ -1,0 +1,501 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reported Issues{% endblock %}
+{% block meta_description %}Browse, search, and review all civic issue reports submitted via JanRakshak AI. Track status, priority, department routing, and risk scores.{% endblock %}
+
+{% block content %}
+<div class="reports-dark-bg min-h-screen py-10 px-4 sm:px-6 lg:px-8">
+    <div class="max-w-7xl mx-auto">
+        
+        {# Header #}
+        <header class="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+            <div>
+                <h1 class="page-title text-3xl font-extrabold text-slate-900 tracking-tight sm:text-4xl">Reported Issues</h1>
+                <p class="page-subtitle mt-2 text-sm text-slate-500">Browse all civic issues reported by citizens and their AI analysis.</p>
+            </div>
+            <a href="{% url 'portal:report_issue' %}" class="btn btn-primary flex-shrink-0">
+                + New Report
+            </a>
+        </header>
+
+        {# Interactive Search & Filters Control Panel #}
+        <div class="reports-panel-dark p-6 mb-8">
+            <div class="flex flex-col gap-6">
+                
+                {# Search bar #}
+                <div class="relative w-full">
+                    <label for="search-input" class="sr-only">Search reported issues</label>
+                    <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <svg class="h-5 w-5 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                        </svg>
+                    </div>
+                    <input type="search" id="search-input" value="{{ keyword }}" class="dark-search-input pl-10 pr-4 py-3 w-full rounded-xl form-input text-base shadow-inner outline-none transition"
+                        placeholder="Search by keyword, street, place, department, or issue type..." aria-label="Search reported issues" />
+                </div>
+
+                {# Filters & Sorting grid #}
+                <div class="flex flex-col gap-5 border-t border-slate-200/60 pt-5">
+                    <div class="flex flex-col lg:flex-row lg:items-center justify-between gap-4">
+                        {# Category Filter dropdown & Status Filter #}
+                        <div class="flex flex-wrap items-center gap-4">
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <label for="filter-category" class="text-xs font-bold text-slate-500 uppercase tracking-wider">Category</label>
+                                <select id="filter-category" class="bg-white border border-slate-300 text-slate-800 rounded-lg px-3 py-1.5 text-sm focus:border-cyan-600 focus:outline-none transition">
+                                    <option value="All">All Categories</option>
+                                    <option value="Road Damage">Road Damage</option>
+                                    <option value="Water Leakage">Water Leakage</option>
+                                    <option value="Garbage">Garbage</option>
+                                    <option value="Electricity">Electricity</option>
+                                    <option value="Streetlight">Streetlight</option>
+                                    <option value="Flood">Flood</option>
+                                    <option value="Fire Emergency">Fire Emergency</option>
+                                    <option value="Tree Fall">Tree Fall</option>
+                                    <option value="General Civic Issue">General / Other</option>
+                                </select>
+                            </div>
+                            
+                            <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</label>
+                                <div class="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-300">
+                                    <button type="button" class="status-tab-btn active px-3 py-1 text-xs font-semibold rounded-md transition" data-status="active">
+                                        Active
+                                    </button>
+                                    <button type="button" class="status-tab-btn px-3 py-1 text-xs font-semibold rounded-md transition" data-status="needs_review">
+                                        Needs Review
+                                    </button>
+                                    <button type="button" class="status-tab-btn px-3 py-1 text-xs font-semibold rounded-md transition" data-status="spam">
+                                        Spam
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                            <label for="sort-select" class="text-xs font-bold text-slate-500 uppercase tracking-wider">Sort By</label>
+                            <select id="sort-select" class="bg-white border border-slate-300 text-slate-800 rounded-lg px-3 py-1.5 text-sm focus:border-cyan-600 focus:outline-none transition">
+                                <option value="date-desc">Newest First</option>
+                                <option value="date-asc">Oldest First</option>
+                                <option value="risk-desc">Highest Risk Score</option>
+                                <option value="risk-asc">Lowest Risk Score</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="flex flex-col gap-3">
+                        <div class="flex flex-col gap-2">
+                            <label for="state-filter" class="text-xs font-bold text-slate-500 uppercase tracking-wider">State / UT</label>
+                            <select id="state-filter" class="bg-white border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm focus:border-cyan-600 focus:outline-none transition min-w-[240px]">
+                                <option value="">All States / UTs</option>
+                            </select>
+                        </div>
+
+                        <div class="flex flex-col gap-2">
+                            <label for="district-filter" class="text-xs font-bold text-slate-500 uppercase tracking-wider">District</label>
+                            <select id="district-filter" class="bg-white border border-slate-300 text-slate-800 rounded-lg px-3 py-2 text-sm focus:border-cyan-600 focus:outline-none transition min-w-[240px]" disabled>
+                                <option value="">All Districts</option>
+                            </select>
+                        </div>
+                    </div>
+
+                {# Priority filter pills #}
+                <div class="flex flex-wrap items-center gap-2 border-t border-slate-200/60 pt-4">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mr-2">Priority Level</span>
+                    <button class="filter-btn-dark priority-filter-btn active" data-priority="All">All</button>
+                    <button class="filter-btn-dark priority-filter-btn" data-priority="Critical">Critical</button>
+                    <button class="filter-btn-dark priority-filter-btn" data-priority="High">High</button>
+                    <button class="filter-btn-dark priority-filter-btn" data-priority="Medium">Medium</button>
+                    <button class="filter-btn-dark priority-filter-btn" data-priority="Low">Low</button>
+                </div>
+
+            </div>
+        </div>
+
+        {# Cards grid #}
+        <div id="reports-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {% for report in reports %}
+            <div class="report-card-item" 
+                 data-id="{{ report.id }}"
+                 data-issue="{{ report.issue }}"
+                 data-priority="{{ report.priority }}"
+                 data-department="{{ report.department }}"
+                  data-location="{{ report.location|lower }}"
+                 data-risk="{{ report.risk_score }}"
+                 data-spam="{{ report.is_spam|default:0 }}"
+                 data-date="{% if report.submitted_at %}{{ report.submitted_at|date:'U' }}{% else %}0{% endif %}"
+                 data-text="{{ report.issue }} {{ report.description }} {{ report.location }} {{ report.department }}">
+                 
+                <div class="report-card-premium">
+                    
+                    {# Image Header #}
+                    <div class="report-card-img-wrapper">
+                        {% if report.photo_path %}
+                            <img src="{{ report.photo_path }}" alt="{{ report.issue }}" class="report-card-img" />
+                        {% else %}
+                            {# Category-specific Vector/Gradient Placeholder #}
+                            <div class="card-gradient-placeholder flex items-center justify-center relative">
+                                {% if report.issue == 'Road Damage' %}
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-slate-100 via-stone-200 to-amber-100/60 opacity-90"></div>
+                                    <svg class="w-12 h-12 text-amber-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                                    </svg>
+                                {% elif report.issue == 'Water Leakage' %}
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-slate-100 via-cyan-50 to-blue-100/50 opacity-90"></div>
+                                    <svg class="w-12 h-12 text-cyan-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z" />
+                                    </svg>
+                                {% elif report.issue == 'Garbage' %}
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-slate-100 via-emerald-50 to-emerald-100/40 opacity-90"></div>
+                                    <svg class="w-12 h-12 text-emerald-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                    </svg>
+                                {% elif report.issue == 'Electricity' or report.issue == 'Streetlight' %}
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-slate-100 via-slate-100 to-yellow-100/50 opacity-90"></div>
+                                    <svg class="w-12 h-12 text-yellow-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 10V3L4 14h7v7l9-11h-7z" />
+                                    </svg>
+                                {% elif report.issue == 'Flood' %}
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-slate-100 via-sky-50 to-blue-100/60 opacity-90"></div>
+                                    <svg class="w-12 h-12 text-sky-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M3 10h18M3 14h18m-9-6a9 9 0 019 9H3a9 9 0 019-9z" />
+                                    </svg>
+                                {% elif report.issue == 'Fire Emergency' %}
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-slate-100 via-rose-50 to-red-100/60 opacity-90"></div>
+                                    <svg class="w-12 h-12 text-rose-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                                    </svg>
+                                {% elif report.issue == 'Tree Fall' %}
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-slate-100 via-green-50 to-yellow-100/40 opacity-90"></div>
+                                    <svg class="w-12 h-12 text-green-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.286L13 21l-2.286-5.714L5 13l5.714-2.286L13 3z" />
+                                    </svg>
+                                {% else %}
+                                    <div class="absolute inset-0 bg-gradient-to-tr from-slate-100 via-slate-100 to-indigo-100/50 opacity-90"></div>
+                                    <svg class="w-12 h-12 text-indigo-600 relative z-10" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z" />
+                                    </svg>
+                                {% endif %}
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    {# Body #}
+                    <div class="report-card-body">
+                        
+                        {# Badge & Date & Upvotes #}
+                        <div class="report-card-badge-container flex items-center justify-between">
+                            <div class="flex items-center gap-1.5">
+                                {% if report.is_spam == 1 %}
+                                    <span class="badge bg-red-100 text-red-800 border border-red-200">Spam</span>
+                                {% elif report.is_spam == 2 %}
+                                    <span class="badge bg-amber-100 text-amber-800 border border-amber-200 animate-pulse">Needs Review</span>
+                                {% else %}
+                                    <span class="badge 
+                                        {% if report.priority == 'Critical' %}badge-critical
+                                        {% elif report.priority == 'High' %}badge-high
+                                        {% elif report.priority == 'Medium' %}badge-medium
+                                        {% else %}badge-low{% endif %}">
+                                        {{ report.priority }}
+                                    </span>
+                                {% endif %}
+                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200" title="Community Upvotes">
+                                    👍 {{ report.upvotes|default:1 }}
+                                </span>
+                            </div>
+                            <span class="text-xs text-slate-500 font-medium flex items-center gap-1">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                </svg>
+                                {% if report.submitted_at %}
+                                    {{ report.submitted_at|date:"M j, Y" }}
+                                {% else %}
+                                    Recent
+                                {% endif %}
+                            </span>
+                        </div>
+
+                        {# Title #}
+                        <h2 class="report-card-title">{{ report.issue }}</h2>
+
+                        {# Location #}
+                        <div class="report-card-location">
+                            <svg class="w-3.5 h-3.5 flex-shrink-0 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                            </svg>
+                            <span class="truncate" title="{{ report.location }}">{{ report.location }}</span>
+                        </div>
+
+                        {# Description #}
+                        <p class="report-card-desc line-clamp-3">{{ report.description }}</p>
+
+                        {# AI Analysis section #}
+                        <div class="report-card-ai-analysis">
+                            <div class="report-card-ai-header">
+                                <svg class="w-3.5 h-3.5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                </svg>
+                                AI Analysis
+                            </div>
+                            
+                            <div class="report-card-ai-grid space-y-1.5">
+                                <div class="flex items-center justify-between">
+                                    <span class="report-card-ai-label">Routing Dept:</span>
+                                    <span class="report-card-ai-val text-right truncate max-w-[150px]" title="{{ report.department }}">{{ report.department }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="report-card-ai-label">AI Confidence:</span>
+                                    <span class="report-card-ai-val">{{ report.confidence }}</span>
+                                </div>
+                                <div class="flex items-center justify-between">
+                                    <span class="report-card-ai-label">Risk Level:</span>
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-16 bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                            <div class="h-full rounded-full 
+                                                {% if report.risk_score >= 80 %}bg-red-500
+                                                {% elif report.risk_score >= 50 %}bg-amber-500
+                                                {% else %}bg-emerald-500{% endif %}" 
+                                                style="width: {{ report.risk_score }}%">
+                                            </div>
+                                        </div>
+                                        <span class="report-card-ai-val">{{ report.risk_score }}/100</span>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {% if report.suggested_action %}
+                                <div class="report-card-ai-action">
+                                    {{ report.suggested_action }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+
+                    </div>
+                </div>
+
+            </div>
+            {% endfor %}
+        </div>
+
+        {# Empty / No Results State #}
+        <div id="no-results-placeholder" class="hidden text-center py-20 bg-slate-100 border border-dashed border-slate-300 rounded-2xl">
+            <svg class="w-16 h-16 mx-auto mb-4 text-slate-400 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z" />
+            </svg>
+            <h3 class="text-lg font-bold text-slate-900 mb-1">No reported issues found</h3>
+            <p class="text-sm text-slate-500 mb-6 max-w-md mx-auto">We couldn't find any issues matching your search terms or filters. Try adjusting your selections.</p>
+            <button onclick="document.getElementById('search-input').value=''; document.getElementById('filter-category').value='All'; document.getElementById('state-filter').value=''; document.getElementById('district-filter').value=''; document.getElementById('district-filter').disabled=true; document.querySelectorAll('.priority-filter-btn')[0].click();" class="btn btn-secondary border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800 rounded-lg text-sm">
+                Reset All Filters
+            </button>
+        </div>
+
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    document.addEventListener("DOMContentLoaded", () => {
+        const searchInput = document.getElementById("search-input");
+        const categorySelect = document.getElementById("filter-category");
+        const priorityButtons = document.querySelectorAll(".priority-filter-btn");
+        const statusButtons = document.querySelectorAll(".status-tab-btn");
+        const sortSelect = document.getElementById("sort-select");
+        const stateFilter = document.getElementById("state-filter");
+        const districtFilter = document.getElementById("district-filter");
+        const cardsGrid = document.getElementById("reports-grid");
+        const noResults = document.getElementById("no-results-placeholder");
+        const cards = Array.from(document.querySelectorAll(".report-card-item"));
+
+        let activePriority = "All";
+        let activeStatus = "active"; // "active", "needs_review", or "spam"
+        let stateDistrictMap = [];
+
+        function normalizeText(value) {
+            return (value || "")
+                .toString()
+                .toLowerCase()
+                .replace(/\bdistrict\b/g, "")
+                .replace(/[^a-z0-9\s]/g, " ")
+                .replace(/\s+/g, " ")
+                .trim();
+        }
+
+        function renderStateFilterOptions() {
+            if (!stateFilter) return;
+            const selected = stateFilter.value;
+            stateFilter.innerHTML = '<option value="">All States / UTs</option>';
+            stateDistrictMap.forEach(entry => {
+                const opt = document.createElement("option");
+                opt.value = entry.state;
+                opt.textContent = `${entry.state} (${entry.code})`;
+                stateFilter.appendChild(opt);
+            });
+            if (selected) {
+                stateFilter.value = selected;
+            }
+        }
+
+        function renderDistrictFilterOptions(stateName) {
+            if (!districtFilter) return;
+
+            const previous = districtFilter.value;
+            const stateEntry = stateDistrictMap.find(entry => entry.state === stateName);
+            const districts = stateEntry?.districts || [];
+
+            districtFilter.innerHTML = '<option value="">All Districts</option>';
+            districts.forEach(name => {
+                const opt = document.createElement("option");
+                opt.value = name;
+                opt.textContent = name;
+                districtFilter.appendChild(opt);
+            });
+
+            districtFilter.disabled = !stateEntry;
+            if (!stateEntry) {
+                districtFilter.value = "";
+                return;
+            }
+
+            if (previous && districts.includes(previous)) {
+                districtFilter.value = previous;
+            }
+        }
+
+        async function initStateDistrictFilters() {
+            if (!stateFilter || !districtFilter) return;
+            try {
+                const res = await fetch('/static/data/india_state_district_map.json');
+                if (!res.ok) throw new Error('Failed to load state-district map');
+
+                stateDistrictMap = await res.json();
+                renderStateFilterOptions();
+                renderDistrictFilterOptions("");
+
+                stateFilter.addEventListener("change", () => {
+                    renderDistrictFilterOptions(stateFilter.value);
+                    updateList();
+                });
+
+                districtFilter.addEventListener("change", updateList);
+            } catch (err) {
+                console.warn('[View Reports Filter]', err.message);
+                stateFilter.disabled = true;
+                districtFilter.disabled = true;
+            }
+        }
+
+        function updateList() {
+            const query = searchInput.value.toLowerCase().trim();
+            const category = categorySelect.value;
+            const sortValue = sortSelect.value;
+            const selectedState = normalizeText(stateFilter?.value || "");
+            const selectedDistrict = normalizeText(districtFilter?.value || "");
+
+            let visibleCount = 0;
+
+            cards.forEach(card => {
+                const text = card.getAttribute("data-text").toLowerCase();
+                const cardPriority = card.getAttribute("data-priority");
+                const cardIssue = card.getAttribute("data-issue");
+                const cardSpam = card.getAttribute("data-spam") || "0";
+                const cardLocation = normalizeText(card.getAttribute("data-location") || "");
+
+                const matchesSearch = !query || text.includes(query);
+                const matchesPriority = activePriority === "All" || cardPriority === activePriority;
+                const matchesCategory = category === "All" || cardIssue === category;
+                const matchesStatus = (activeStatus === "active" && cardSpam === "0") ||
+                                      (activeStatus === "needs_review" && cardSpam === "2") ||
+                                      (activeStatus === "spam" && cardSpam === "1");
+                const matchesState = !selectedState || cardLocation.includes(selectedState);
+                const matchesDistrict = !selectedDistrict || cardLocation.includes(selectedDistrict);
+
+                if (matchesSearch && matchesPriority && matchesCategory && matchesStatus && matchesState && matchesDistrict) {
+                    visibleCount++;
+                    if (card.style.display === "none" || card.style.opacity === "0" || !card.style.display) {
+                        card.style.display = "block";
+                        if (typeof gsap !== "undefined") {
+                            gsap.to(card, { opacity: 1, scale: 1, duration: 0.3, ease: "power2.out" });
+                        } else {
+                            card.style.opacity = "1";
+                            card.style.transform = "scale(1)";
+                        }
+                    }
+                } else {
+                    if (card.style.display !== "none") {
+                        if (typeof gsap !== "undefined") {
+                            gsap.to(card, { opacity: 0, scale: 0.95, duration: 0.2, ease: "power2.in", onComplete: () => {
+                                card.style.display = "none";
+                            }});
+                        } else {
+                            card.style.opacity = "0";
+                            card.style.display = "none";
+                        }
+                    }
+                }
+            });
+
+            // Sorting (Only sort elements actually in grid)
+            cards.sort((a, b) => {
+                if (sortValue === "date-desc") {
+                    return parseInt(b.getAttribute("data-date")) - parseInt(a.getAttribute("data-date"));
+                } else if (sortValue === "date-asc") {
+                    return parseInt(a.getAttribute("data-date")) - parseInt(b.getAttribute("data-date"));
+                } else if (sortValue === "risk-desc") {
+                    return parseInt(b.getAttribute("data-risk")) - parseInt(a.getAttribute("data-risk"));
+                } else if (sortValue === "risk-asc") {
+                    return parseInt(a.getAttribute("data-risk")) - parseInt(b.getAttribute("data-risk"));
+                }
+                return 0;
+            });
+
+            // Re-append sorted elements to grid
+            cards.forEach(card => cardsGrid.appendChild(card));
+
+            // Toggle no results placeholder
+            if (visibleCount === 0) {
+                noResults.classList.remove("hidden");
+                cardsGrid.classList.add("hidden");
+            } else {
+                noResults.classList.add("hidden");
+                cardsGrid.classList.remove("hidden");
+            }
+        }
+
+        // Set up event listeners
+        if (searchInput) {
+            searchInput.addEventListener("input", updateList);
+        }
+        if (categorySelect) {
+            categorySelect.addEventListener("change", updateList);
+        }
+        if (sortSelect) {
+            sortSelect.addEventListener("change", updateList);
+        }
+        priorityButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                priorityButtons.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                activePriority = btn.getAttribute("data-priority");
+                updateList();
+            });
+        });
+
+        statusButtons.forEach(btn => {
+            btn.addEventListener("click", () => {
+                statusButtons.forEach(b => b.classList.remove("active"));
+                btn.classList.add("active");
+                activeStatus = btn.getAttribute("data-status");
+                updateList();
+            });
+        });
+
+
+        // Run initial listing update (filters pre-loaded search keywords)
+        initStateDistrictFilters().finally(updateList);
+    });
+</script>
+{% endblock %}

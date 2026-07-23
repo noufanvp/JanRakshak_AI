@@ -1,0 +1,36 @@
+{% extends "admin_panel/base.html" %}
+
+{% block title %}Audit Log{% endblock %}
+{% block page_title %}Audit Log{% endblock %}
+{% block page_subtitle %}System activity trail — last 200 entries (newest first){% endblock %}
+
+{% block content %}
+<div class="admin-card">
+  <div class="px-5 py-4 border-b border-admin-border flex items-center justify-between">
+    <h3 class="text-sm font-bold text-white">Activity Log</h3>
+    <span class="text-xs text-admin-muted font-mono">{{ log_lines|length }} entries</span>
+  </div>
+  <div class="p-4">
+    {% if log_lines %}
+    <div class="space-y-1 font-mono text-xs" style="max-height:75vh;overflow-y:auto;">
+      {% for line in log_lines %}
+      <div class="flex gap-3 py-1.5 px-3 rounded hover:bg-admin-hover transition group border border-transparent hover:border-admin-border"
+           style="{% if 'ERROR' in line or 'error' in line %}background:rgba(239,68,68,0.06);border-color:rgba(239,68,68,0.15);
+           {% elif 'WARN' in line or 'warn' in line %}background:rgba(245,158,11,0.06);border-color:rgba(245,158,11,0.12);{% endif %}">
+        <span class="flex-shrink-0 text-admin-muted w-5">›</span>
+        <span class="text-slate-300 break-all leading-relaxed">{{ line }}</span>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="flex flex-col items-center justify-center py-20 text-center">
+      <svg class="w-12 h-12 text-admin-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      </svg>
+      <p class="text-admin-muted font-medium">No audit log found</p>
+      <p class="text-xs text-admin-muted mt-1">Log entries will appear here as actions are performed</p>
+    </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

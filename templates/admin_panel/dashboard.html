@@ -1,0 +1,301 @@
+{% extends "admin_panel/base.html" %}
+
+{% block title %}Dashboard{% endblock %}
+{% block page_title %}Dashboard{% endblock %}
+{% block page_subtitle %}Real-time overview of civic issue reporting activity{% endblock %}
+
+{% block content %}
+
+<!-- KPI Cards -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+
+  <div class="stat-card blue">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-xs font-bold text-blue-400 uppercase tracking-wider">Total Reports</span>
+      <div class="w-9 h-9 rounded-lg bg-blue-900/40 flex items-center justify-center">
+        <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z"/></svg>
+      </div>
+    </div>
+    <div class="text-3xl font-extrabold text-white">{{ stats.total }}</div>
+    <div class="text-xs text-admin-muted mt-1">All time submissions</div>
+  </div>
+
+  <div class="stat-card green">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-xs font-bold text-emerald-400 uppercase tracking-wider">Active</span>
+      <div class="w-9 h-9 rounded-lg bg-emerald-900/40 flex items-center justify-center">
+        <svg class="w-5 h-5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+      </div>
+    </div>
+    <div class="text-3xl font-extrabold text-white">{{ stats.active }}</div>
+    <div class="text-xs text-admin-muted mt-1">Verified civic issues</div>
+  </div>
+
+  <div class="stat-card amber">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-xs font-bold text-amber-400 uppercase tracking-wider">Needs Review</span>
+      <div class="w-9 h-9 rounded-lg bg-amber-900/40 flex items-center justify-center">
+        <svg class="w-5 h-5 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+    </div>
+    <div class="text-3xl font-extrabold text-white">{{ stats.review }}</div>
+    <div class="text-xs text-admin-muted mt-1">Awaiting authority review</div>
+  </div>
+
+  <div class="stat-card red">
+    <div class="flex items-center justify-between mb-3">
+      <span class="text-xs font-bold text-red-400 uppercase tracking-wider">Spam</span>
+      <div class="w-9 h-9 rounded-lg bg-red-900/40 flex items-center justify-center">
+        <svg class="w-5 h-5 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+      </div>
+    </div>
+    <div class="text-3xl font-extrabold text-white">{{ stats.spam }}</div>
+    <div class="text-xs text-admin-muted mt-1">AI-flagged as spam</div>
+  </div>
+</div>
+
+<!-- Row 2: Charts -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+  <!-- Issue distribution -->
+  <div class="admin-card lg:col-span-2">
+    <div class="px-5 py-4 border-b border-admin-border flex items-center justify-between">
+      <h3 class="text-sm font-bold text-white">Issue Distribution</h3>
+      <span class="text-xs text-admin-muted">Active reports only</span>
+    </div>
+    <div class="p-5">
+      <canvas id="issueChart" height="200"></canvas>
+    </div>
+  </div>
+
+  <!-- Priority breakdown -->
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Priority Breakdown</h3>
+    </div>
+    <div class="p-5">
+      <canvas id="priorityChart" height="200"></canvas>
+    </div>
+    <div class="px-5 pb-4 space-y-2">
+      {% for label, count in stats.priority_counts.items %}
+      <div class="flex items-center justify-between text-xs">
+        <span class="text-admin-muted">{{ label }}</span>
+        <span class="font-bold text-white">{{ count }}</span>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+<!-- Row 3: Risk + Department + Recent Volume -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-6">
+
+  <!-- Risk Distribution -->
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Risk Distribution</h3>
+    </div>
+    <div class="p-5 space-y-4">
+      {% for label, color, idx in risk_rows %}
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-admin-muted">{{ label }}</span>
+          <span class="font-bold text-white" id="risk-val-{{ idx }}">–</span>
+        </div>
+        <div class="risk-bar"><div class="risk-fill" id="risk-bar-{{ idx }}" style="width:0%;background:{{ color }}"></div></div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Department Load -->
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Department Load</h3>
+    </div>
+    <div class="p-5">
+      <canvas id="deptChart" height="220"></canvas>
+    </div>
+  </div>
+
+  <!-- 7-Day Volume -->
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">7-Day Submission Volume</h3>
+    </div>
+    <div class="p-5">
+      <canvas id="recentChart" height="220"></canvas>
+    </div>
+  </div>
+</div>
+
+<!-- Row 4: Avg risk + Top locations + Quick actions -->
+<div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
+
+  <!-- Avg Risk -->
+  <div class="admin-card flex flex-col items-center justify-center p-8">
+    <div class="text-xs font-bold text-admin-muted uppercase tracking-wider mb-3">Average Risk Score</div>
+    <div class="relative w-32 h-32 mb-4">
+      <canvas id="riskGauge" width="128" height="128"></canvas>
+      <div class="absolute inset-0 flex items-center justify-center flex-col">
+        <span class="text-3xl font-extrabold text-white">{{ stats.avg_risk }}</span>
+        <span class="text-xs text-admin-muted">/ 100</span>
+      </div>
+    </div>
+    <div class="text-xs text-admin-muted text-center">
+      {% if stats.avg_risk >= 80 %}🔴 Critical system risk
+      {% elif stats.avg_risk >= 60 %}🟠 High system risk
+      {% elif stats.avg_risk >= 40 %}🟡 Moderate system risk
+      {% else %}🟢 Low system risk{% endif %}
+    </div>
+  </div>
+
+  <!-- Top Locations -->
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Top Hotspot Locations</h3>
+    </div>
+    <div class="p-4 space-y-3">
+      {% for loc in stats.top_locations %}
+      <div class="flex items-center gap-3">
+        <div class="w-6 h-6 rounded-full bg-blue-900/50 flex items-center justify-center text-blue-400 text-xs font-bold flex-shrink-0">{{ forloop.counter }}</div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm text-white truncate font-medium">{{ loc.location }}</div>
+          <div class="text-xs text-admin-muted">{{ loc.count }} report{{ loc.count|pluralize }}</div>
+        </div>
+        <div class="text-xs font-bold text-blue-400">{{ loc.count }}</div>
+      </div>
+      {% empty %}
+      <p class="text-admin-muted text-sm text-center py-4">No location data yet.</p>
+      {% endfor %}
+    </div>
+  </div>
+
+  <!-- Quick Actions -->
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Quick Actions</h3>
+    </div>
+    <div class="p-4 space-y-3">
+      <a href="{% url 'admin_panel:reports' %}?status=review" class="flex items-center gap-3 p-3 rounded-lg bg-amber-900/20 border border-amber-900/30 hover:bg-amber-900/30 transition group">
+        <svg class="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <div>
+          <div class="text-sm font-semibold text-white">Review Pending ({{ stats.review }})</div>
+          <div class="text-xs text-admin-muted">Resolve AI-flagged reports</div>
+        </div>
+        <svg class="w-4 h-4 text-admin-muted ml-auto group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <a href="{% url 'admin_panel:reports' %}?status=spam" class="flex items-center gap-3 p-3 rounded-lg bg-red-900/20 border border-red-900/30 hover:bg-red-900/30 transition group">
+        <svg class="w-5 h-5 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+        <div>
+          <div class="text-sm font-semibold text-white">Spam Reports ({{ stats.spam }})</div>
+          <div class="text-xs text-admin-muted">Review spam classifications</div>
+        </div>
+        <svg class="w-4 h-4 text-admin-muted ml-auto group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <a href="{% url 'admin_panel:export_csv' %}" class="flex items-center gap-3 p-3 rounded-lg bg-blue-900/20 border border-blue-900/30 hover:bg-blue-900/30 transition group">
+        <svg class="w-5 h-5 text-blue-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+        <div>
+          <div class="text-sm font-semibold text-white">Export All Reports</div>
+          <div class="text-xs text-admin-muted">Download as CSV</div>
+        </div>
+        <svg class="w-4 h-4 text-admin-muted ml-auto group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </a>
+      <a href="{% url 'admin_panel:audit_log' %}" class="flex items-center gap-3 p-3 rounded-lg bg-slate-800/40 border border-slate-700/40 hover:bg-slate-700/40 transition group">
+        <svg class="w-5 h-5 text-slate-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        <div>
+          <div class="text-sm font-semibold text-white">View Audit Log</div>
+          <div class="text-xs text-admin-muted">System activity trail</div>
+        </div>
+        <svg class="w-4 h-4 text-admin-muted ml-auto group-hover:text-white transition" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+      </a>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+const issueData  = {{ stats.issue_data_json|safe }};
+const deptData   = {{ stats.dept_data_json|safe }};
+const riskBuckets= {{ stats.risk_buckets_json|safe }};
+const recentData = {{ stats.recent_data_json|safe }};
+
+const PALETTE = ['#3B82F6','#06B6D4','#10B981','#F59E0B','#EF4444','#8B5CF6','#F97316','#EC4899'];
+
+// Issue Distribution (Bar)
+new Chart(document.getElementById('issueChart'), {
+  type: 'bar',
+  data: {
+    labels: issueData.map(d => d.label),
+    datasets: [{ data: issueData.map(d => d.count), backgroundColor: PALETTE, borderRadius: 6, borderSkipped: false }]
+  },
+  options: { responsive:true, plugins:{ legend:{display:false} }, scales:{
+    x:{ ticks:{color:'#64748B', font:{size:10}}, grid:{color:'#1E2A42'} },
+    y:{ ticks:{color:'#64748B', font:{size:10}}, grid:{color:'#1E2A42'} }
+  }}
+});
+
+// Priority Donut
+const pCounts = {{ stats.priority_counts|safe }};
+new Chart(document.getElementById('priorityChart'), {
+  type: 'doughnut',
+  data: {
+    labels: Object.keys(pCounts),
+    datasets: [{ data: Object.values(pCounts), backgroundColor:['#EF4444','#F97316','#F59E0B','#10B981'], borderWidth:0, hoverOffset:6 }]
+  },
+  options: { cutout:'72%', responsive:true, plugins:{ legend:{display:true, position:'bottom', labels:{color:'#94A3B8',font:{size:10},boxWidth:10,padding:12}} } }
+});
+
+// Department Load (Horizontal Bar)
+new Chart(document.getElementById('deptChart'), {
+  type: 'bar',
+  data: {
+    labels: deptData.map(d => d.label.length > 22 ? d.label.substring(0,22)+'…' : d.label),
+    datasets: [{ data: deptData.map(d => d.count), backgroundColor: '#2563EB88', borderRadius:4, borderSkipped:false }]
+  },
+  options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{
+    x:{ ticks:{color:'#64748B',font:{size:9}}, grid:{color:'#1E2A42'} },
+    y:{ ticks:{color:'#94A3B8',font:{size:9}}, grid:{display:false} }
+  }}
+});
+
+// 7-Day Volume (Line)
+new Chart(document.getElementById('recentChart'), {
+  type: 'line',
+  data: {
+    labels: recentData.map(d => d.day ? d.day.substring(5) : ''),
+    datasets: [{ data: recentData.map(d => d.count),
+      borderColor:'#06B6D4', backgroundColor:'rgba(6,182,212,0.12)',
+      fill:true, tension:0.4, pointBackgroundColor:'#06B6D4', pointRadius:4 }]
+  },
+  options: { responsive:true, plugins:{legend:{display:false}}, scales:{
+    x:{ ticks:{color:'#64748B',font:{size:9}}, grid:{color:'#1E2A42'} },
+    y:{ ticks:{color:'#64748B',font:{size:9}}, grid:{color:'#1E2A42'} }
+  }}
+});
+
+// Risk bars
+const total = riskBuckets.reduce((a,b)=>a+b,0) || 1;
+riskBuckets.forEach((val,i) => {
+  const bar = document.getElementById(`risk-bar-${i}`);
+  const label = document.getElementById(`risk-val-${i}`);
+  if (bar) { setTimeout(()=>{ bar.style.width = ((val/total)*100).toFixed(1)+'%'; }, 200); }
+  if (label) label.textContent = val;
+});
+
+// Risk Gauge (Doughnut)
+const avgRisk = {{ stats.avg_risk }};
+const gaugeColor = avgRisk >= 80 ? '#EF4444' : avgRisk >= 60 ? '#F97316' : avgRisk >= 40 ? '#F59E0B' : '#10B981';
+new Chart(document.getElementById('riskGauge'), {
+  type: 'doughnut',
+  data: {
+    datasets: [{ data:[avgRisk, 100-avgRisk], backgroundColor:[gaugeColor,'#1E2A42'], borderWidth:0 }]
+  },
+  options: { cutout:'78%', rotation:-90, circumference:180, responsive:false, plugins:{tooltip:{enabled:false}} }
+});
+}); // end DOMContentLoaded
+</script>
+{% endblock %}

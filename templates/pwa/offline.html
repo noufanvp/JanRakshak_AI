@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}You Are Offline{% endblock %}
+{% block content %}
+<div class="page-container max-w-lg text-center" style="padding-top: 6rem;">
+  <div class="content-panel">
+    <svg class="w-14 h-14 mx-auto mb-4 text-brand-primary opacity-60" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+        d="M18.364 5.636a9 9 0 010 12.728M15.536 8.464a5 5 0 010 7.072M3 3l18 18"/>
+    </svg>
+    <h1 class="text-xl font-bold text-slate-800 mb-2">You're Offline</h1>
+    <p class="text-slate-500 text-sm mb-6">
+      No internet connection detected. The app will retry when you reconnect.
+      Reports you've already loaded are available below.
+    </p>
+    <div class="flex flex-col gap-2">
+      <a href="/" class="btn btn-primary w-full">Go to Dashboard</a>
+      <button onclick="window.location.reload()" class="btn btn-secondary w-full">
+        Retry Connection
+      </button>
+    </div>
+  </div>
+</div>
+{% endblock %}

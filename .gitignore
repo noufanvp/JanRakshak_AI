@@ -1,0 +1,82 @@
+# ===================================
+# Python
+# ===================================
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.egg
+*.egg-info/
+dist/
+build/
+eggs/
+parts/
+var/
+sdist/
+develop-eggs/
+.installed.cfg
+lib/
+lib64/
+.eggs/
+
+# ===================================
+# Virtual environments
+# ===================================
+.venv/
+venv/
+env/
+ENV/
+
+# ===================================
+# Django
+# ===================================
+*.pyc
+db.sqlite3
+staticfiles/
+media/*
+!media/.gitkeep
+
+# ===================================
+# Environment & Secrets
+# ===================================
+.env
+*.env
+.env.local
+.env.production
+
+# ===================================
+# Logs & Runtime
+# ===================================
+logs/*.log
+logs/*.log.*
+data/audit.log
+data/reports.db
+data/security.key
+data/security_audit.log
+*.log
+
+# ===================================
+# IDE / Editor
+# ===================================
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ===================================
+# Testing & Coverage
+# ===================================
+.coverage
+htmlcov/
+.pytest_cache/
+*.cover
+.tox/
+
+# ===================================
+# Build artifacts
+# ===================================
+*.mo
+*.pot

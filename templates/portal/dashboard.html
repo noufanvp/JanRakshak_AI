@@ -1,0 +1,295 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Analytics Dashboard{% endblock %}
+{% block meta_description %}Live analytics for JanRakshak AI: issue frequency, priority distribution, hotspot locations, and environmental impact metrics.{% endblock %}
+
+{% block content %}
+<div class="page-container">
+
+  {# ============================================================ #}
+  {# PAGE HEADER #}
+  {# ============================================================ #}
+  <header class="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+    <div>
+      <h1 class="page-title">Analytics Dashboard</h1>
+      <p class="page-subtitle">
+        Real-time overview of civic reports, AI classifications, and environmental impact.
+      </p>
+    </div>
+    <div class="flex items-center gap-2 flex-shrink-0">
+      <a href="{% url 'portal:report_issue' %}" class="btn btn-primary">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+        </svg>
+        New Report
+      </a>
+      <button id="btn-refresh-dashboard"
+              class="btn btn-secondary"
+              title="Refresh dashboard"
+              aria-label="Refresh dashboard data">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+            d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581
+               m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/>
+        </svg>
+      </button>
+    </div>
+  </header>
+
+  {# ============================================================ #}
+  {# METRIC CARDS ROW #}
+  {# ============================================================ #}
+  <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+
+    {# Total Reports #}
+    <div class="metric-card" role="region" aria-label="Total reports metric">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="metric-label">Total Reports</p>
+          <p class="metric-value" aria-live="off">{{ total_reports }}</p>
+          <p class="metric-sub">All time</p>
+        </div>
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+             style="background: rgba(14,116,144,0.10)">
+          <svg class="w-5 h-5 text-brand-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    {# Average Risk Score #}
+    <div class="metric-card" role="region" aria-label="Average risk score metric">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="metric-label">Avg Risk Score</p>
+          <p class="metric-value
+            {% if avg_risk >= 80 %}text-red-600
+            {% elif avg_risk >= 50 %}text-amber-600
+            {% else %}text-green-600{% endif %}"
+            aria-live="off">
+            {{ avg_risk }}
+          </p>
+          <p class="metric-sub">out of 100</p>
+        </div>
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0
+          {% if avg_risk >= 80 %}bg-red-50{% elif avg_risk >= 50 %}bg-amber-50{% else %}bg-green-50{% endif %}">
+          <svg class="w-5 h-5
+            {% if avg_risk >= 80 %}text-red-500{% elif avg_risk >= 50 %}text-amber-500{% else %}text-green-500{% endif %}"
+            fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+              d="M12 9v2m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    {# Most Common Issue #}
+    <div class="metric-card" role="region" aria-label="Most common issue metric">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="metric-label">Top Issue</p>
+          <p class="text-lg font-bold text-slate-800 leading-tight mt-1">{{ top_issue }}</p>
+          <p class="metric-sub">Most reported</p>
+        </div>
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+             style="background: rgba(234,88,12,0.08)">
+          <svg class="w-5 h-5 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+              d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+    {# CO2 Saved #}
+    <div class="metric-card" role="region" aria-label="CO2 saved metric">
+      <div class="flex items-start justify-between">
+        <div>
+          <p class="metric-label">CO₂ Saved</p>
+          <p class="metric-value text-green-600" aria-live="off">{{ co2_saved }}</p>
+          <p class="metric-sub">kg via automation</p>
+        </div>
+        <div class="w-9 h-9 rounded-lg flex items-center justify-center flex-shrink-0"
+             style="background: rgba(22,163,74,0.10)">
+          <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+              d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064"/>
+          </svg>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  {# ============================================================ #}
+  {# CHARTS ROW (2-up on large screens, stacked on mobile) #}
+  {# ============================================================ #}
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+    {# Issue Distribution Donut #}
+    <div class="content-panel" role="region" aria-label="Issue distribution chart">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-slate-800">Issue Distribution</h2>
+        <span class="text-xs text-slate-400">by category</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="chart-issue-distribution" aria-label="Donut chart showing issue type distribution"></canvas>
+      </div>
+      {# Hidden JSON blob for dashboard.js to parse — avoids inline JS pollution #}
+      <script type="application/json" id="issue-distribution-data">{{ issue_distribution_json|safe }}</script>
+    </div>
+
+    {# Priority Distribution Horizontal Bars #}
+    <div class="content-panel" role="region" aria-label="Priority distribution chart">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-slate-800">Priority Breakdown</h2>
+        <span class="text-xs text-slate-400">by severity</span>
+      </div>
+      <div class="chart-container">
+        <canvas id="chart-priority-distribution" aria-label="Horizontal bar chart showing priority levels"></canvas>
+      </div>
+      <script type="application/json" id="priority-distribution-data">{{ priority_distribution_json|safe }}</script>
+    </div>
+
+  </div>
+
+  {# ============================================================ #}
+  {# RISK TREND (full width) #}
+  {# ============================================================ #}
+  <div class="content-panel mb-8" role="region" aria-label="Risk score trend chart">
+    <div class="flex items-center justify-between mb-4">
+      <h2 class="text-sm font-semibold text-slate-800">Risk Score Trend</h2>
+      <span class="text-xs px-2 py-0.5 rounded bg-amber-50 text-amber-600 border border-amber-100 font-medium">
+        Sample data — connect live DB for real trend
+      </span>
+    </div>
+    <div class="chart-container">
+      <canvas id="chart-risk-trend" aria-label="Line chart showing risk score trend over time"></canvas>
+    </div>
+  </div>
+
+  {# ============================================================ #}
+  {# BOTTOM ROW — Hotspots + Issue Table #}
+  {# ============================================================ #}
+  <div class="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
+
+    {# Top Hotspot Locations #}
+    <div class="content-panel" role="region" aria-label="Hotspot locations">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-slate-800">Top Hotspot Locations</h2>
+        <a href="{% url 'portal:view_reports' %}" class="text-xs text-brand-primary hover:underline">
+          View all →
+        </a>
+      </div>
+
+      {% if top_locations %}
+        <table class="data-table" aria-label="Top locations with most reports">
+          <thead>
+            <tr>
+              <th scope="col">Location</th>
+              <th scope="col" class="text-right">Reports</th>
+              <th scope="col">Intensity</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for location, count in top_locations %}
+            <tr class="data-row">
+              <td class="font-medium text-slate-700 text-sm">{{ location }}</td>
+              <td class="text-right text-sm font-semibold text-slate-800">{{ count }}</td>
+              <td>
+                {# Visual intensity bar scaled against max 10 #}
+                <div class="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
+                  <div class="h-full rounded-full"
+                       style="width: {% widthratio count 10 100 %}%; background: var(--jr-primary);"
+                       role="presentation">
+                  </div>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <div class="text-center py-10 text-slate-400">
+          <svg class="w-8 h-8 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+              d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"/>
+          </svg>
+          <p class="text-sm">No location data yet</p>
+        </div>
+      {% endif %}
+    </div>
+
+    {# Issue Type Breakdown Table #}
+    <div class="content-panel" role="region" aria-label="Issue type breakdown">
+      <div class="flex items-center justify-between mb-4">
+        <h2 class="text-sm font-semibold text-slate-800">Issue Breakdown</h2>
+      </div>
+
+      {% if issue_distribution %}
+        <table class="data-table" aria-label="Issue types and their report counts">
+          <thead>
+            <tr>
+              <th scope="col">Category</th>
+              <th scope="col" class="text-right">Count</th>
+              <th scope="col">Share</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for row in issue_distribution %}
+            <tr class="data-row">
+              <td class="font-medium text-slate-700 text-sm">{{ row.label }}</td>
+              <td class="text-right text-sm font-semibold text-slate-800">{{ row.count }}</td>
+              <td class="text-xs text-slate-500">
+                {% widthratio row.count total_reports 100 %}%
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="text-slate-400 text-sm text-center py-8">
+          Submit a report to populate this table.
+        </p>
+      {% endif %}
+    </div>
+
+  </div>
+
+  {# ============================================================ #}
+  {# SYSTEM STATUS FOOTER CARD #}
+  {# ============================================================ #}
+  <div class="content-panel" role="region" aria-label="System status">
+    <div class="flex flex-col sm:flex-row items-start sm:items-center gap-4 justify-between">
+      <div>
+        <p class="text-sm font-semibold text-slate-800 mb-0.5">System Status</p>
+        <p class="text-xs text-slate-500">
+          Offline AI model active &middot; SQLite database operational &middot; Privacy layer enabled
+        </p>
+      </div>
+
+      {# Status pill #}
+      <div class="flex items-center gap-2">
+        {% if avg_risk >= 80 %}
+          <span class="w-2 h-2 rounded-full bg-red-500 animate-pulse"></span>
+          <span class="text-sm font-medium text-red-600">High Risk</span>
+        {% elif avg_risk >= 50 %}
+          <span class="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></span>
+          <span class="text-sm font-medium text-amber-600">Moderate Risk</span>
+        {% else %}
+          <span class="w-2 h-2 rounded-full bg-green-500"></span>
+          <span class="text-sm font-medium text-green-600">Low Risk</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+</div>{# /page-container #}
+{% endblock %}
+
+{% block extra_scripts %}
+  <script src="{% static 'js/dashboard.js' %}" defer></script>
+{% endblock %}

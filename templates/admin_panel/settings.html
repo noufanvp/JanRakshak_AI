@@ -1,0 +1,116 @@
+{% extends "admin_panel/base.html" %}
+
+{% block title %}Settings{% endblock %}
+{% block page_title %}Settings{% endblock %}
+{% block page_subtitle %}System configuration and environment overview{% endblock %}
+
+{% block content %}
+<div class="max-w-3xl mx-auto space-y-6">
+
+  <!-- Credentials -->
+  <div class="admin-card">
+    <div class="px-6 py-4 border-b border-admin-border flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-blue-900/40 flex items-center justify-center">
+        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+      </div>
+      <h3 class="text-sm font-bold text-white">Authentication</h3>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div class="flex items-center justify-between py-3 border-b border-admin-border">
+        <div>
+          <p class="text-sm font-medium text-white">Admin Username</p>
+          <p class="text-xs text-admin-muted mt-0.5">Set via ADMIN_PANEL_USERNAME env var</p>
+        </div>
+        <code class="text-sm font-mono text-blue-400 bg-blue-900/20 px-3 py-1 rounded-lg">{{ settings.ADMIN_USERNAME }}</code>
+      </div>
+      <div class="flex items-center justify-between py-3">
+        <div>
+          <p class="text-sm font-medium text-white">Admin Password</p>
+          <p class="text-xs text-admin-muted mt-0.5">Set via ADMIN_PANEL_PASSWORD env var</p>
+        </div>
+        <code class="text-sm font-mono text-admin-muted bg-admin-hover px-3 py-1 rounded-lg">••••••••••••</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- AI Configuration -->
+  <div class="admin-card">
+    <div class="px-6 py-4 border-b border-admin-border flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-cyan-900/40 flex items-center justify-center">
+        <svg class="w-4 h-4 text-cyan-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h14a2 2 0 012 2v10a2 2 0 01-2 2h-2M12 3v1m0 16v1"/></svg>
+      </div>
+      <h3 class="text-sm font-bold text-white">AI Configuration</h3>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div class="flex items-center justify-between py-3 border-b border-admin-border">
+        <div>
+          <p class="text-sm font-medium text-white">Gemini API Key</p>
+          <p class="text-xs text-admin-muted mt-0.5">Set via GEMINI_API_KEY env var</p>
+        </div>
+        <code class="text-sm font-mono text-cyan-400 bg-cyan-900/20 px-3 py-1 rounded-lg">{{ settings.GEMINI_API_KEY }}</code>
+      </div>
+      <div class="flex items-center justify-between py-3">
+        <div>
+          <p class="text-sm font-medium text-white">AI Model</p>
+          <p class="text-xs text-admin-muted mt-0.5">Image classification model</p>
+        </div>
+        <code class="text-sm font-mono text-cyan-400 bg-cyan-900/20 px-3 py-1 rounded-lg">gemini-2.0-flash</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- System Info -->
+  <div class="admin-card">
+    <div class="px-6 py-4 border-b border-admin-border flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-slate-700/60 flex items-center justify-center">
+        <svg class="w-4 h-4 text-slate-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 3H5a2 2 0 00-2 2v4m6-6h10a2 2 0 012 2v4M9 3v18m0 0h10a2 2 0 002-2V9M9 21H5a2 2 0 01-2-2V9m0 0h18"/></svg>
+      </div>
+      <h3 class="text-sm font-bold text-white">System Info</h3>
+    </div>
+    <div class="px-6 py-5 space-y-4">
+      <div class="flex items-center justify-between py-3 border-b border-admin-border">
+        <p class="text-sm font-medium text-white">Time Zone</p>
+        <code class="text-sm font-mono text-white bg-admin-hover px-3 py-1 rounded-lg">{{ settings.TIME_ZONE }}</code>
+      </div>
+      <div class="flex items-center justify-between py-3 border-b border-admin-border">
+        <div>
+          <p class="text-sm font-medium text-white">Debug Mode</p>
+          <p class="text-xs text-amber-400 mt-0.5">Disable in production</p>
+        </div>
+        <span class="text-sm font-bold {% if settings.DEBUG %}text-amber-400{% else %}text-emerald-400{% endif %}">
+          {{ settings.DEBUG|yesno:"ENABLED,DISABLED" }}
+        </span>
+      </div>
+      <div class="flex items-center justify-between py-3">
+        <p class="text-sm font-medium text-white">Database</p>
+        <code class="text-sm font-mono text-white bg-admin-hover px-3 py-1 rounded-lg">SQLite (data/reports.db)</code>
+      </div>
+    </div>
+  </div>
+
+  <!-- Spam / Review Thresholds -->
+  <div class="admin-card">
+    <div class="px-6 py-4 border-b border-admin-border flex items-center gap-3">
+      <div class="w-8 h-8 rounded-lg bg-amber-900/40 flex items-center justify-center">
+        <svg class="w-4 h-4 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+      </div>
+      <h3 class="text-sm font-bold text-white">AI Spam / Review Policy</h3>
+    </div>
+    <div class="px-6 py-5 space-y-3 text-sm text-admin-muted">
+      <div class="flex items-start gap-3 p-3 rounded-lg bg-red-900/10 border border-red-900/20">
+        <span class="text-red-400 font-bold mt-0.5">●</span>
+        <p><span class="text-white font-semibold">Automatic Spam (is_spam = 1):</span> AI classifies the issue as "Spam" with any confidence level.</p>
+      </div>
+      <div class="flex items-start gap-3 p-3 rounded-lg bg-amber-900/10 border border-amber-900/20">
+        <span class="text-amber-400 font-bold mt-0.5">●</span>
+        <p><span class="text-white font-semibold">Needs Review (is_spam = 2):</span> AI confidence is "Low" (text) or below 70% (numeric image score). Requires authority resolution here in the admin panel.</p>
+      </div>
+      <div class="flex items-start gap-3 p-3 rounded-lg bg-emerald-900/10 border border-emerald-900/20">
+        <span class="text-emerald-400 font-bold mt-0.5">●</span>
+        <p><span class="text-white font-semibold">Active (is_spam = 0):</span> AI confidently classified a valid civic issue. No action required.</p>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

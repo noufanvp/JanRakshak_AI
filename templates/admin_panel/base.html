@@ -1,0 +1,304 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en-IN" class="h-full">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>{% block title %}Admin{% endblock %} — JanRakshak Admin Panel</title>
+  <meta name="robots" content="noindex, nofollow" />
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            admin: {
+              bg:       "#0B0F1A",
+              sidebar:  "#0F1629",
+              card:     "#141B2D",
+              border:   "#1E2A42",
+              hover:    "#1A2540",
+              accent:   "#3B82F6",
+              accent2:  "#06B6D4",
+              success:  "#10B981",
+              warning:  "#F59E0B",
+              danger:   "#EF4444",
+              muted:    "#64748B",
+              text:     "#E2E8F0",
+              textDim:  "#94A3B8",
+            },
+          },
+          fontFamily: {
+            sans: ["Inter", "system-ui", "sans-serif"],
+            mono: ["JetBrains Mono", "monospace"],
+          },
+        },
+      },
+    };
+  </script>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+
+  <style>
+    body { background: #0B0F1A; color: #E2E8F0; font-family: 'Inter', sans-serif; }
+
+    /* Sidebar */
+    .sidebar { background: #0F1629; border-right: 1px solid #1E2A42; }
+    .sidebar-link {
+      display: flex; align-items: center; gap: 12px;
+      padding: 10px 16px; border-radius: 10px;
+      color: #94A3B8; font-size: 0.875rem; font-weight: 500;
+      transition: all 0.2s; cursor: pointer; text-decoration: none;
+    }
+    .sidebar-link:hover { background: #1A2540; color: #E2E8F0; }
+    .sidebar-link.active { background: linear-gradient(135deg, #1E3A5F, #1a2f50); color: #60A5FA; border: 1px solid #2563EB33; }
+    .sidebar-link svg { width: 18px; height: 18px; flex-shrink: 0; }
+
+    /* Cards */
+    .admin-card {
+      background: #141B2D; border: 1px solid #1E2A42;
+      border-radius: 14px; overflow: hidden;
+    }
+    .stat-card {
+      background: linear-gradient(135deg, #141B2D, #0F1629);
+      border: 1px solid #1E2A42; border-radius: 14px;
+      padding: 20px; position: relative; overflow: hidden;
+      transition: transform 0.2s, box-shadow 0.2s;
+    }
+    .stat-card:hover { transform: translateY(-2px); box-shadow: 0 8px 30px rgba(0,0,0,0.4); }
+    .stat-card::before {
+      content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    }
+    .stat-card.blue::before { background: linear-gradient(90deg, #3B82F6, #06B6D4); }
+    .stat-card.green::before { background: linear-gradient(90deg, #10B981, #34D399); }
+    .stat-card.amber::before { background: linear-gradient(90deg, #F59E0B, #FBBF24); }
+    .stat-card.red::before { background: linear-gradient(90deg, #EF4444, #F87171); }
+
+    /* Table */
+    .data-table { width: 100%; border-collapse: collapse; }
+    .data-table th {
+      padding: 12px 16px; text-align: left; font-size: 0.7rem;
+      font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase;
+      color: #64748B; border-bottom: 1px solid #1E2A42; background: #0F1629;
+    }
+    .data-table td {
+      padding: 12px 16px; font-size: 0.825rem; color: #CBD5E1;
+      border-bottom: 1px solid #1E2A421A; vertical-align: middle;
+    }
+    .data-table tbody tr { transition: background 0.15s; }
+    .data-table tbody tr:hover { background: #1A2540; }
+
+    /* Badges */
+    .badge {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 10px; border-radius: 20px;
+      font-size: 0.7rem; font-weight: 700; letter-spacing: 0.04em;
+    }
+    .badge-critical { background: #450a0a; color: #fca5a5; border: 1px solid #7f1d1d; }
+    .badge-high     { background: #431407; color: #fdba74; border: 1px solid #7c2d12; }
+    .badge-medium   { background: #422006; color: #fcd34d; border: 1px solid #78350f; }
+    .badge-low      { background: #052e16; color: #6ee7b7; border: 1px solid #14532d; }
+    .badge-spam     { background: #450a0a; color: #fca5a5; border: 1px solid #991b1b; }
+    .badge-review   { background: #422006; color: #fcd34d; border: 1px solid #92400e; }
+    .badge-active   { background: #052e16; color: #6ee7b7; border: 1px solid #166534; }
+
+    /* Buttons */
+    .btn-admin {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 7px 14px; border-radius: 8px; font-size: 0.8rem; font-weight: 600;
+      cursor: pointer; border: none; transition: all 0.2s; text-decoration: none;
+    }
+    .btn-primary { background: #2563EB; color: #fff; }
+    .btn-primary:hover { background: #1D4ED8; }
+    .btn-success { background: #059669; color: #fff; }
+    .btn-success:hover { background: #047857; }
+    .btn-danger { background: #DC2626; color: #fff; }
+    .btn-danger:hover { background: #B91C1C; }
+    .btn-warning { background: #D97706; color: #fff; }
+    .btn-warning:hover { background: #B45309; }
+    .btn-ghost { background: #1E2A42; color: #94A3B8; border: 1px solid #2D3F5E; }
+    .btn-ghost:hover { background: #243352; color: #E2E8F0; }
+
+    /* Input */
+    .admin-input {
+      background: #0F1629; border: 1px solid #1E2A42; border-radius: 8px;
+      color: #E2E8F0; padding: 8px 14px; font-size: 0.875rem; outline: none;
+      transition: border-color 0.2s;
+    }
+    .admin-input:focus { border-color: #3B82F6; }
+    .admin-input::placeholder { color: #475569; }
+
+    /* Search */
+    .search-box { position: relative; }
+    .search-box input { padding-left: 36px; }
+    .search-box svg { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); color: #475569; width: 16px; height: 16px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; inset: 0; background: rgba(0,0,0,0.7);
+      display: flex; align-items: center; justify-content: center;
+      z-index: 9999; opacity: 0; pointer-events: none; transition: opacity 0.25s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+    .modal-box {
+      background: #141B2D; border: 1px solid #1E2A42; border-radius: 16px;
+      width: 90%; max-width: 720px; max-height: 85vh; overflow-y: auto;
+      transform: scale(0.95); transition: transform 0.25s;
+    }
+    .modal-overlay.open .modal-box { transform: scale(1); }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #0B0F1A; }
+    ::-webkit-scrollbar-thumb { background: #2D3F5E; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #3B82F6; }
+
+    /* Risk bar */
+    .risk-bar { height: 6px; border-radius: 3px; background: #1E2A42; overflow: hidden; }
+    .risk-fill { height: 100%; border-radius: 3px; transition: width 0.5s; }
+
+    /* Notification toast */
+    .toast {
+      position: fixed; bottom: 24px; right: 24px; z-index: 99999;
+      background: #141B2D; border: 1px solid #1E2A42; border-radius: 10px;
+      padding: 12px 20px; font-size: 0.85rem; font-weight: 500;
+      display: flex; align-items: center; gap: 10px;
+      transform: translateY(80px); opacity: 0; transition: all 0.3s;
+      min-width: 260px;
+    }
+    .toast.show { transform: translateY(0); opacity: 1; }
+    .toast.success { border-left: 3px solid #10B981; }
+    .toast.error   { border-left: 3px solid #EF4444; }
+
+    /* Pulse animation for review badge */
+    @keyframes pulse-amber { 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
+    .animate-pulse-amber { animation: pulse-amber 1.8s ease-in-out infinite; }
+  </style>
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body class="h-full flex overflow-hidden">
+
+  <!-- ======== SIDEBAR ======== -->
+  <aside class="sidebar w-64 flex-shrink-0 flex flex-col h-screen overflow-y-auto">
+
+    <!-- Logo -->
+    <div class="px-5 py-5 border-b border-admin-border flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center flex-shrink-0">
+        <svg viewBox="0 0 32 32" fill="none" class="w-5 h-5 text-white">
+          <path d="M16 3L4 8V17C4 23.627 9.373 29 16 29C22.627 29 28 23.627 28 17V8L16 3Z" fill="currentColor" fill-opacity="0.2" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M11 16L14.5 19.5L21 13" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </div>
+      <div>
+        <div class="text-sm font-bold text-white">JanRakshak</div>
+        <div class="text-xs text-admin-muted">Admin Panel</div>
+      </div>
+    </div>
+
+    <!-- Nav -->
+    <nav class="flex-1 px-3 py-4 space-y-1">
+      <p class="text-xs font-bold text-admin-muted uppercase tracking-wider px-3 mb-2">Main</p>
+
+      <a href="{% url 'admin_panel:dashboard' %}" class="sidebar-link {% if active_page == 'dashboard' %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+        Dashboard
+      </a>
+
+      <a href="{% url 'admin_panel:reports' %}" class="sidebar-link {% if active_page == 'reports' %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z"/></svg>
+        Reports
+      </a>
+
+      <a href="{% url 'admin_panel:analytics' %}" class="sidebar-link {% if active_page == 'analytics' %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 12l3-3 3 3 4-4M8 21l4-4 4 4M3 4h18M4 4h16v12a1 1 0 01-1 1H5a1 1 0 01-1-1V4z"/></svg>
+        Analytics
+      </a>
+
+      <p class="text-xs font-bold text-admin-muted uppercase tracking-wider px-3 mb-2 mt-4">System</p>
+
+      <a href="{% url 'admin_panel:audit_log' %}" class="sidebar-link {% if active_page == 'audit_log' %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/></svg>
+        Audit Log
+      </a>
+
+      <a href="{% url 'admin_panel:settings' %}" class="sidebar-link {% if active_page == 'settings' %}active{% endif %}">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/><circle cx="12" cy="12" r="3" stroke-width="2"/></svg>
+        Settings
+      </a>
+
+      <p class="text-xs font-bold text-admin-muted uppercase tracking-wider px-3 mb-2 mt-4">External</p>
+      <a href="/" target="_blank" class="sidebar-link">
+        <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"/></svg>
+        View Public Site
+      </a>
+    </nav>
+
+    <!-- User info + logout -->
+    <div class="px-3 py-4 border-t border-admin-border">
+      <div class="flex items-center gap-3 px-3 py-2 rounded-lg bg-admin-hover">
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center text-white text-sm font-bold flex-shrink-0">
+          {{ admin_username|first|upper }}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="text-sm font-medium text-white truncate">{{ admin_username }}</div>
+          <div class="text-xs text-admin-muted">Administrator</div>
+        </div>
+        <a href="{% url 'admin_panel:logout' %}" title="Logout" class="text-admin-muted hover:text-red-400 transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/></svg>
+        </a>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ======== MAIN AREA ======== -->
+  <div class="flex-1 flex flex-col overflow-hidden">
+
+    <!-- Top bar -->
+    <header class="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-admin-border" style="background:#0F1629;">
+      <div>
+        <h1 class="text-lg font-bold text-white">{% block page_title %}Dashboard{% endblock %}</h1>
+        <p class="text-xs text-admin-muted mt-0.5">{% block page_subtitle %}Overview of your civic reporting system{% endblock %}</p>
+      </div>
+      <div class="flex items-center gap-3">
+        {% block header_actions %}{% endblock %}
+        <a href="{% url 'admin_panel:export_csv' %}" class="btn-admin btn-ghost text-xs">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+          Export CSV
+        </a>
+      </div>
+    </header>
+
+    <!-- Scrollable content -->
+    <main class="flex-1 overflow-y-auto px-6 py-6">
+      {% block content %}{% endblock %}
+    </main>
+  </div>
+
+  <!-- ======== TOAST NOTIFICATION ======== -->
+  <div id="admin-toast" class="toast" role="alert" aria-live="polite"></div>
+
+  <script>
+    function showToast(msg, type='success') {
+      const t = document.getElementById('admin-toast');
+      t.className = `toast ${type}`;
+      t.innerHTML = `
+        <svg class="w-4 h-4 flex-shrink-0 ${type==='success'?'text-emerald-400':'text-red-400'}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          ${type==='success'
+            ? '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>'
+            : '<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>'}
+        </svg>
+        <span>${msg}</span>`;
+      setTimeout(() => t.classList.add('show'), 10);
+      setTimeout(() => t.classList.remove('show'), 3500);
+    }
+  </script>
+
+  {% block extra_scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,184 @@
+{% extends "admin_panel/base.html" %}
+{% load admin_extras %}
+
+{% block title %}Analytics{% endblock %}
+{% block page_title %}Analytics{% endblock %}
+{% block page_subtitle %}Deep-dive into civic issue patterns, department performance, and risk trends{% endblock %}
+
+{% block content %}
+
+<!-- Summary row -->
+<div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+  <div class="stat-card blue text-center">
+    <div class="text-4xl font-extrabold text-white mb-1">{{ stats.total }}</div>
+    <div class="text-xs text-blue-400 font-bold uppercase tracking-wider">Total Reports</div>
+  </div>
+  <div class="stat-card green text-center">
+    <div class="text-4xl font-extrabold text-white mb-1">{{ stats.active }}</div>
+    <div class="text-xs text-emerald-400 font-bold uppercase tracking-wider">Active</div>
+  </div>
+  <div class="stat-card amber text-center">
+    <div class="text-4xl font-extrabold text-white mb-1">{{ stats.review }}</div>
+    <div class="text-xs text-amber-400 font-bold uppercase tracking-wider">Needs Review</div>
+  </div>
+  <div class="stat-card red text-center">
+    <div class="text-4xl font-extrabold text-white mb-1">{{ stats.spam }}</div>
+    <div class="text-xs text-red-400 font-bold uppercase tracking-wider">Spam</div>
+  </div>
+</div>
+
+<!-- Row 1: Issue + Department -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Issues by Category</h3>
+      <p class="text-xs text-admin-muted mt-0.5">Active reports only</p>
+    </div>
+    <div class="p-5"><canvas id="issuePieChart" height="260"></canvas></div>
+  </div>
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Department Workload</h3>
+      <p class="text-xs text-admin-muted mt-0.5">Total reports assigned</p>
+    </div>
+    <div class="p-5"><canvas id="deptBarChart" height="260"></canvas></div>
+  </div>
+</div>
+
+<!-- Row 2: Risk + 7-Day line -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-4">
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Risk Score Distribution</h3>
+    </div>
+    <div class="p-5"><canvas id="riskBarChart" height="220"></canvas></div>
+  </div>
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Submission Trend (7 Days)</h3>
+    </div>
+    <div class="p-5"><canvas id="trendChart" height="220"></canvas></div>
+  </div>
+</div>
+
+<!-- Row 3: Issue table + Top locations -->
+<div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Issue Breakdown Table</h3>
+    </div>
+    <div class="overflow-x-auto">
+      <table class="data-table">
+        <thead>
+          <tr>
+            <th>Issue Type</th>
+            <th>Count</th>
+            <th>Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for item in stats.issue_data %}
+          <tr>
+            <td class="text-white font-medium">{{ item.label }}</td>
+            <td class="font-bold text-blue-400">{{ item.count }}</td>
+            <td>
+              <div class="flex items-center gap-2">
+                <div class="risk-bar w-24"><div class="risk-fill" style="width:{{ item.count|pct:stats.active }}%;background:#3B82F6"></div></div>
+                <span class="text-xs text-admin-muted font-mono">{{ item.count|pct:stats.active }}%</span>
+              </div>
+            </td>
+          </tr>
+          {% empty %}
+          <tr><td colspan="3" class="text-center text-admin-muted py-6">No data</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+
+  <div class="admin-card">
+    <div class="px-5 py-4 border-b border-admin-border">
+      <h3 class="text-sm font-bold text-white">Top Hotspot Locations</h3>
+    </div>
+    <div class="p-4 space-y-4">
+      {% for loc in stats.top_locations %}
+      <div>
+        <div class="flex justify-between text-xs mb-1">
+          <span class="text-white font-medium">{{ loc.location }}</span>
+          <span class="text-admin-muted font-mono">{{ loc.count }}</span>
+        </div>
+        <div class="risk-bar"><div class="risk-fill" style="width:{{ loc.count|pct:stats.active }}%;background:linear-gradient(90deg,#3B82F6,#06B6D4)"></div></div>
+      </div>
+      {% empty %}
+      <p class="text-admin-muted text-sm text-center py-4">No location data available.</p>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+const issueData  = {{ stats.issue_data_json|safe }};
+const deptData   = {{ stats.dept_data_json|safe }};
+const riskBuckets = {{ stats.risk_buckets_json|safe }};
+const recentData  = {{ stats.recent_data_json|safe }};
+
+const PALETTE = ['#3B82F6','#06B6D4','#10B981','#F59E0B','#EF4444','#8B5CF6','#F97316','#EC4899'];
+
+// Issue pie
+new Chart(document.getElementById('issuePieChart'), {
+  type:'pie',
+  data:{
+    labels: issueData.map(d=>d.label),
+    datasets:[{ data: issueData.map(d=>d.count), backgroundColor: PALETTE, borderWidth:2, borderColor:'#141B2D' }]
+  },
+  options:{ responsive:true, plugins:{legend:{position:'right',labels:{color:'#94A3B8',font:{size:10},padding:10,boxWidth:10}}} }
+});
+
+// Dept bar horizontal
+new Chart(document.getElementById('deptBarChart'), {
+  type:'bar',
+  data:{
+    labels: deptData.map(d=>d.label.length>28?d.label.substring(0,28)+'…':d.label),
+    datasets:[{ data: deptData.map(d=>d.count), backgroundColor:'#06B6D4', borderRadius:4, borderSkipped:false }]
+  },
+  options:{ indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{
+    x:{ticks:{color:'#64748B',font:{size:9}},grid:{color:'#1E2A42'}},
+    y:{ticks:{color:'#94A3B8',font:{size:10}},grid:{display:false}}
+  }}
+});
+
+// Risk bar
+new Chart(document.getElementById('riskBarChart'), {
+  type:'bar',
+  data:{
+    labels:['Low (0–29)','Medium (30–59)','High (60–79)','Critical (80+)'],
+    datasets:[{ data: riskBuckets, backgroundColor:['#10B981','#F59E0B','#F97316','#EF4444'], borderRadius:6, borderSkipped:false }]
+  },
+  options:{ responsive:true, plugins:{legend:{display:false}}, scales:{
+    x:{ticks:{color:'#64748B'},grid:{display:false}},
+    y:{ticks:{color:'#64748B'},grid:{color:'#1E2A42'}}
+  }}
+});
+
+// Trend line
+new Chart(document.getElementById('trendChart'), {
+  type:'line',
+  data:{
+    labels: recentData.map(d=>d.day?d.day.substring(5):''),
+    datasets:[{ data: recentData.map(d=>d.count),
+      borderColor:'#3B82F6', backgroundColor:'rgba(59,130,246,0.1)',
+      fill:true, tension:0.4, pointBackgroundColor:'#3B82F6', pointRadius:5
+    }]
+  },
+  options:{ responsive:true, plugins:{legend:{display:false}}, scales:{
+    x:{ticks:{color:'#64748B',font:{size:10}},grid:{color:'#1E2A42'}},
+    y:{ticks:{color:'#64748B'},grid:{color:'#1E2A42'}}
+  }}
+});
+}); // end DOMContentLoaded
+</script>
+{% endblock %}

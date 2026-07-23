@@ -1,0 +1,288 @@
+{% extends "admin_panel/base.html" %}
+{% load admin_extras %}
+
+{% block title %}Reports Management{% endblock %}
+{% block page_title %}Reports Management{% endblock %}
+{% block page_subtitle %}View, filter, resolve, and delete civic issue reports{% endblock %}
+
+{% block header_actions %}
+<form method="GET" action="" class="flex items-center gap-2" id="search-form">
+  <input type="hidden" name="status" value="{{ status_filter }}" id="status-hidden" />
+  <div class="search-box flex items-center">
+    <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
+    <input type="text" name="q" value="{{ keyword }}" placeholder="Search reports…" class="admin-input w-56" id="search-input" />
+  </div>
+  <button type="submit" class="btn-admin btn-primary">Search</button>
+  {% if keyword %}<a href="?status={{ status_filter }}" class="btn-admin btn-ghost">Clear</a>{% endif %}
+</form>
+{% endblock %}
+
+{% block content %}
+
+<!-- Status Filter Tabs -->
+<div class="flex items-center gap-2 mb-5 flex-wrap">
+  {% for s, label, cnt_key in tabs %}
+  <a href="?status={{ s }}{% if keyword %}&q={{ keyword }}{% endif %}"
+     class="flex items-center gap-1.5 px-4 py-2 rounded-lg text-sm font-semibold transition
+     {% if status_filter == s %}text-white ring-1 ring-white/20 shadow-inner{% else %}text-admin-muted hover:text-white hover:bg-admin-hover{% endif %}"
+     style="{% if status_filter == s %}background:{% if s == 'active' %}#065F46{% elif s == 'review' %}#78350F{% elif s == 'spam' %}#7F1D1D{% else %}#1E2A42{% endif %}{% endif %}">
+    {{ label }}
+    <span class="px-1.5 py-0.5 rounded text-xs font-bold" style="background:rgba(255,255,255,0.12)">{{ counts|get_item:cnt_key }}</span>
+  </a>
+  {% endfor %}
+</div>
+
+<!-- Table -->
+<div class="admin-card overflow-x-auto">
+  {% if reports %}
+  <table class="data-table">
+    <thead>
+      <tr>
+        <th>ID</th>
+        <th>Description</th>
+        <th>Location</th>
+        <th>Issue</th>
+        <th>Priority</th>
+        <th>Risk</th>
+        <th>Department</th>
+        <th>Status</th>
+        <th>Submitted</th>
+        <th style="text-align:right;">Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for report in reports %}
+      <tr id="row-{{ report.id }}">
+        <td class="font-mono text-admin-muted text-xs">#{{ report.id }}</td>
+        <td style="max-width:220px;">
+          <p class="truncate text-admin-text font-medium" title="{{ report.description }}">{{ report.description|truncatechars:60 }}</p>
+        </td>
+        <td class="text-admin-muted text-xs">{{ report.location|truncatechars:24 }}</td>
+        <td>
+          <span class="font-medium text-white text-xs">{{ report.issue }}</span>
+        </td>
+        <td>
+          <span class="badge
+            {% if report.priority == 'Critical' %}badge-critical
+            {% elif report.priority == 'High' %}badge-high
+            {% elif report.priority == 'Medium' %}badge-medium
+            {% else %}badge-low{% endif %}">
+            {{ report.priority }}
+          </span>
+        </td>
+        <td>
+          <div class="flex items-center gap-2">
+            <div class="risk-bar w-16"><div class="risk-fill" style="width:{{ report.risk_score }}%;background:{% if report.risk_score >= 80 %}#EF4444{% elif report.risk_score >= 60 %}#F97316{% elif report.risk_score >= 30 %}#F59E0B{% else %}#10B981{% endif %}"></div></div>
+            <span class="text-xs font-mono text-admin-muted">{{ report.risk_score }}</span>
+          </div>
+        </td>
+        <td class="text-xs text-admin-muted" style="max-width:160px;"><span class="truncate block" title="{{ report.department }}">{{ report.department|truncatechars:26 }}</span></td>
+        <td>
+          {% if report.is_spam == 1 %}
+            <span class="badge badge-spam">Spam</span>
+          {% elif report.is_spam == 2 %}
+            <span class="badge badge-review animate-pulse-amber">Needs Review</span>
+          {% else %}
+            <span class="badge badge-active">Active</span>
+          {% endif %}
+        </td>
+        <td class="text-xs text-admin-muted font-mono">
+          {% if report.submitted_at %}{{ report.submitted_at|date:"M j, Y" }}{% else %}—{% endif %}
+        </td>
+        <td>
+          <div class="flex items-center justify-end gap-1.5">
+            <!-- View Detail -->
+            <button onclick="viewDetail({{ report.id }})" class="btn-admin btn-ghost p-1.5" title="View Detail">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z"/></svg>
+            </button>
+            <!-- Resolve Active -->
+            {% if report.is_spam != 0 %}
+            <button onclick="resolveReport({{ report.id }}, 'active', this)" class="btn-admin btn-success p-1.5" title="Mark as Active">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </button>
+            {% endif %}
+            <!-- Mark Spam -->
+            {% if report.is_spam != 1 %}
+            <button onclick="resolveReport({{ report.id }}, 'spam', this)" class="btn-admin btn-warning p-1.5" title="Mark as Spam">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"/></svg>
+            </button>
+            {% endif %}
+            <!-- Delete -->
+            <button onclick="deleteReport({{ report.id }})" class="btn-admin btn-danger p-1.5" title="Delete Permanently">
+              <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+            </button>
+          </div>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% else %}
+  <div class="flex flex-col items-center justify-center py-20 text-center">
+    <svg class="w-12 h-12 text-admin-muted mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z"/></svg>
+    <p class="text-admin-muted font-medium">No reports found</p>
+    <p class="text-xs text-admin-muted mt-1">Try changing the filter or search term</p>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ======== DETAIL MODAL ======== -->
+<div id="detail-modal" class="modal-overlay" aria-modal="true" role="dialog">
+  <div class="modal-box" id="modal-box">
+    <div class="flex items-center justify-between px-6 py-5 border-b border-admin-border">
+      <h2 class="text-base font-bold text-white">Report Detail</h2>
+      <button onclick="closeModal()" class="text-admin-muted hover:text-white transition">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+      </button>
+    </div>
+    <div id="modal-content" class="p-6 space-y-4">
+      <div class="animate-pulse space-y-3">
+        <div class="h-4 bg-admin-border rounded w-3/4"></div>
+        <div class="h-4 bg-admin-border rounded w-1/2"></div>
+        <div class="h-4 bg-admin-border rounded"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+const CSRF = "{{ csrf_token }}";
+
+// ---- Resolve ----
+async function resolveReport(id, action, btn) {
+  btn.disabled = true;
+  try {
+    const res = await fetch(`/admin-panel/api/resolve/${id}/`, {
+      method:'POST',
+      headers:{'Content-Type':'application/json','X-CSRFToken':CSRF},
+      body: JSON.stringify({action})
+    });
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Report #${id} marked as ${action}.`,'success');
+      setTimeout(() => location.reload(), 800);
+    } else {
+      showToast(data.error || 'Failed','error');
+      btn.disabled = false;
+    }
+  } catch(e) { showToast('Network error','error'); btn.disabled = false; }
+}
+
+// ---- Delete ----
+async function deleteReport(id) {
+  if (!confirm(`Permanently delete Report #${id}? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/admin-panel/api/delete/${id}/`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-CSRFToken': CSRF
+      }
+    });
+    if (!res.ok && res.status !== 404) {
+      showToast(`Server error (${res.status}). Try refreshing.`, 'error');
+      return;
+    }
+    const data = await res.json();
+    if (data.success) {
+      showToast(`Report #${id} deleted.`, 'success');
+      const row = document.getElementById(`row-${id}`);
+      if (row) {
+        row.style.transition = 'opacity 0.3s';
+        row.style.opacity = '0';
+        setTimeout(() => row.remove(), 300);
+      }
+    } else {
+      showToast(data.error || 'Delete failed.', 'error');
+    }
+  } catch(e) {
+    showToast('Network error — could not delete.', 'error');
+  }
+}
+
+// ---- Detail Modal ----
+async function viewDetail(id) {
+  document.getElementById('detail-modal').classList.add('open');
+  document.getElementById('modal-content').innerHTML = `
+    <div class="animate-pulse space-y-3">
+      <div class="h-4 bg-slate-700 rounded w-3/4"></div>
+      <div class="h-4 bg-slate-700 rounded w-1/2"></div>
+      <div class="h-24 bg-slate-700 rounded"></div>
+    </div>`;
+  try {
+    const res = await fetch(`/admin-panel/api/detail/${id}/`);
+    const data = await res.json();
+    if (!data.success) { document.getElementById('modal-content').innerHTML = '<p class="text-red-400">Error loading report.</p>'; return; }
+    const r = data.report;
+    const statusMap = {0:'Active',1:'Spam',2:'Needs Review'};
+    const statusColor = {0:'text-emerald-400',1:'text-red-400',2:'text-amber-400'};
+    document.getElementById('modal-content').innerHTML = `
+      <div class="grid grid-cols-2 gap-4">
+        <div class="col-span-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Description</p>
+          <p class="text-slate-200 text-sm leading-relaxed">${r.description || '—'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Issue Type</p>
+          <p class="text-white font-semibold">${r.issue || '—'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Priority</p>
+          <p class="text-white font-semibold">${r.priority || '—'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Location</p>
+          <p class="text-slate-300">${r.location || '—'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Department</p>
+          <p class="text-slate-300">${r.department || '—'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Confidence</p>
+          <p class="text-slate-300">${r.confidence || '—'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Risk Score</p>
+          <p class="text-white font-mono font-bold">${r.risk_score} / 100</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Status</p>
+          <p class="font-bold ${statusColor[r.is_spam] || ''}">${statusMap[r.is_spam] || '—'}</p>
+        </div>
+        <div>
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Submitted At</p>
+          <p class="text-slate-300 font-mono text-xs">${r.submitted_at || '—'}</p>
+        </div>
+        <div class="col-span-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">AI Reason</p>
+          <p class="text-slate-300 text-sm leading-relaxed">${r.reason || '—'}</p>
+        </div>
+        <div class="col-span-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Suggested Action</p>
+          <p class="text-slate-300 text-sm">${r.suggested_action || '—'}</p>
+        </div>
+        <div class="col-span-2">
+          <p class="text-xs text-slate-500 uppercase tracking-wider font-bold mb-1">Advice for Citizen</p>
+          <p class="text-slate-300 text-sm">${r.advice || '—'}</p>
+        </div>
+      </div>
+      <div class="flex gap-3 mt-6 pt-4 border-t border-slate-700">
+        ${r.is_spam !== 0 ? `<button onclick="resolveReport(${r.id},'active',this)" class="btn-admin btn-success flex-1 justify-center">✓ Mark Active</button>` : ''}
+        ${r.is_spam !== 1 ? `<button onclick="resolveReport(${r.id},'spam',this)" class="btn-admin btn-warning flex-1 justify-center">✗ Mark Spam</button>` : ''}
+        <button onclick="deleteReport(${r.id})" class="btn-admin btn-danger flex-1 justify-center">🗑 Delete</button>
+      </div>
+    `;
+  } catch(e) { document.getElementById('modal-content').innerHTML = '<p class="text-red-400">Failed to load report.</p>'; }
+}
+
+function closeModal() { document.getElementById('detail-modal').classList.remove('open'); }
+document.getElementById('detail-modal').addEventListener('click', e => {
+  if (e.target === document.getElementById('detail-modal')) closeModal();
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+</script>
+{% endblock %}

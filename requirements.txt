@@ -1,0 +1,30 @@
+# Django core
+Django>=4.2,<5.0
+gunicorn>=21.2.0
+whitenoise>=6.5.0
+
+# CORS & environment
+django-cors-headers>=4.2.0
+django-environ>=0.10.0
+python-dotenv>=1.0.0
+
+# Database
+psycopg2-binary>=2.9.0
+dj-database-url>=2.1.0
+
+# Image handling
+Pillow>=10.0.0
+
+# Cloud storage — Cloudinary free tier for media uploads
+cloudinary>=1.36.0
+django-cloudinary-storage>=0.3.0
+
+# API framework & filtering
+djangorestframework>=3.14.0
+django-filter>=23.0
+
+# AI — Gemini API (uses requests, no vendor SDK needed)
+requests>=2.31.0
+
+# Error tracking (optional — set SENTRY_DSN env var to enable)
+sentry-sdk>=1.32.0

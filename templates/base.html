@@ -1,0 +1,245 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en-IN" class="h-full">
+
+<head>
+  {# ===================================================================== #}
+  {# META — Core #}
+  {# ===================================================================== #}
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+
+  {# ===================================================================== #}
+  {# META — SEO & Description #}
+  {# ===================================================================== #}
+  <title>{% block title %}CivicAI India{% endblock %} — Civic Issue Reporting</title>
+  <meta name="description"
+    content="{% block meta_description %}Offline-first civic issue reporting with privacy-aware AI triage for India. Built for citizens and administrators.{% endblock %}" />
+  <meta name="keywords"
+    content="civic issues, India, AI, public reporting, road damage, water leakage, garbage, offline" />
+  <meta name="author" content="CivicAI India" />
+  <meta name="robots" content="index, follow" />
+
+  {# ===================================================================== #}
+  {# META — PWA & Mobile #}
+  {# ===================================================================== #}
+  {# Link to the Web App Manifest for "Add to Homescreen" functionality #}
+  <link rel="manifest" href="{% static 'pwa/manifest.json' %}" />
+
+  {# iOS-specific PWA meta tags (Safari does not use manifest.json) #}
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="JanRakshak" />
+  <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}" />
+
+  {# Android Chrome theme color (matches nav bar color) #}
+  <meta name="theme-color" content="#164E63" />
+  <meta name="mobile-web-app-capable" content="yes" />
+
+  {# ===================================================================== #}
+  {# META — Open Graph (social sharing preview) #}
+  {# ===================================================================== #}
+  <meta property="og:type" content="website" />
+  <meta property="og:title" content="CivicAI India — Civic Issue Reporting" />
+  <meta property="og:description" content="Offline-first, privacy-aware civic issue reporting for India." />
+  <meta property="og:image" content="{% static 'icons/icon-512.png' %}" />
+
+  {# ===================================================================== #}
+  {# FAVICON #}
+  {# ===================================================================== #}
+  <link rel="icon" type="image/png" sizes="32x32" href="{% static 'icons/icon-192.png' %}" />
+  <link rel="shortcut icon" href="{% static 'icons/icon-192.png' %}" />
+
+  {# ===================================================================== #}
+  {# FONTS — Inter (primary) + JetBrains Mono (data/code) #}
+  {# Loaded with display=swap for performance; text= param subsets the payload. #}
+  {# ===================================================================== #}
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+
+  {# ===================================================================== #}
+  {# TAILWIND CSS — CDN (development/prototyping) #}
+  {# Replace with compiled output (`npx tailwindcss -o tailwind.css`) for production. #}
+  {# ===================================================================== #}
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    // Tailwind configuration — extends the default theme with brand tokens
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              primary: "#0E7490",
+              secondary: "#164E63",
+              accent: "#06B6D4",
+            },
+            surface: {
+              bg: "#F8FAFC",
+              card: "#FFFFFF",
+              border: "#E2E8F0",
+            },
+          },
+          fontFamily: {
+            sans: ["Inter", "system-ui", "-apple-system", "sans-serif"],
+            mono: ["JetBrains Mono", "Fira Code", "monospace"],
+          },
+        },
+      },
+    };
+  </script>
+
+  {# ===================================================================== #}
+  {# CUSTOM CSS — design tokens, component classes, micro-interactions #}
+  {# ===================================================================== #}
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=13" />
+
+  {# ===================================================================== #}
+  {# CHART.JS — for dashboard visualizations (loaded on all pages; #}
+  {# the dashboard.js will no-op if the canvas elements are absent) #}
+  {# ===================================================================== #}
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js" defer></script>
+
+  {# ===================================================================== #}
+  {# GSAP — Animation engine + ScrollTrigger plugin #}
+  {# Loaded with defer; initPageAnimations() is called on DOMContentLoaded. #}
+  {# ===================================================================== #}
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/gsap.min.js" defer></script>
+  <script src="https://cdn.jsdelivr.net/npm/gsap@3.12.5/dist/ScrollTrigger.min.js" defer></script>
+
+  {# ===================================================================== #}
+  {# Per-page head extension point #}
+  {# ===================================================================== #}
+  {% block extra_head %}{% endblock %}
+</head>
+
+<body class="h-full bg-surface-bg antialiased">
+
+  {# ===================================================================== #}
+  {# NAVIGATION BAR #}
+  {# ===================================================================== #}
+  <nav id="main-nav" class="px-4 lg:px-8 relative">
+    <div class="max-w-7xl mx-auto h-full flex items-center justify-between gap-4">
+
+      {# Brand / Logo #}
+      <a href="{% url 'portal:dashboard' %}" class="flex items-center gap-2.5 flex-shrink-0"
+        aria-label="JanRakshak AI home">
+        {# SVG icon — geometric shield representing civic protection #}
+        <svg class="w-8 h-8 text-brand-accent" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg"
+          aria-hidden="true">
+          <path d="M16 3L4 8V17C4 23.627 9.373 29 16 29C22.627 29 28 23.627 28 17V8L16 3Z" fill="currentColor"
+            fill-opacity="0.15" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" />
+          <path d="M11 16L14.5 19.5L21 13" stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+            stroke-linejoin="round" />
+        </svg>
+        <span class="text-white font-semibold text-base tracking-tight">CivicAI India</span>
+      </a>
+
+      {# Desktop Nav Links #}
+      <div class="hidden md:flex items-center gap-1" role="navigation" aria-label="Main navigation">
+        <a href="{% url 'portal:dashboard' %}"
+          class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <rect x="3" y="3" width="7" height="7" rx="1" stroke-width="1.75" />
+            <rect x="14" y="3" width="7" height="7" rx="1" stroke-width="1.75" />
+            <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.75" />
+            <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="1.75" />
+          </svg>
+          Dashboard
+        </a>
+
+        <a href="{% url 'portal:report_issue' %}"
+          class="nav-link {% if request.resolver_match.url_name == 'report_issue' %}active{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+              d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+          </svg>
+          Report Issue
+        </a>
+
+        <a href="{% url 'portal:view_reports' %}"
+          class="nav-link {% if request.resolver_match.url_name == 'view_reports' %}active{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+              d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z" />
+          </svg>
+          Reports
+        </a>
+
+        <a href="{% url 'portal:emergency' %}"
+          class="nav-link {% if request.resolver_match.url_name == 'emergency' %}active{% endif %}">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13
+                 a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498A1 1 0 0121
+                 15.72V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+          </svg>
+          Emergency
+        </a>
+      </div>
+
+      {# CTA + Mobile Toggle #}
+      <div class="flex items-center gap-2">
+        {# Quick-submit CTA visible on desktop #}
+        <a href="{% url 'portal:report_issue' %}" class="hidden md:inline-flex btn btn-sm text-sm"
+          style="background:var(--jr-accent); color:#fff;">
+          + New Report
+        </a>
+
+        {# Mobile hamburger menu button #}
+        <button id="mobile-menu-btn"
+          class="md:hidden flex items-center justify-center w-9 h-9 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition"
+          aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobile-menu">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    {# Mobile dropdown menu (hidden by default, toggled by JS) #}
+    <div id="mobile-menu"
+      class="hidden md:hidden absolute top-16 left-0 right-0 bg-brand-secondary border-t border-white/10 z-50 px-4 py-3 flex flex-col gap-1"
+      role="navigation" aria-label="Mobile navigation">
+      <a href="{% url 'portal:dashboard' %}" class="nav-link w-full">Dashboard</a>
+      <a href="{% url 'portal:report_issue' %}" class="nav-link w-full">Report Issue</a>
+      <a href="{% url 'portal:view_reports' %}" class="nav-link w-full">Reports</a>
+      <a href="{% url 'portal:emergency' %}" class="nav-link w-full">Emergency</a>
+    </div>
+  </nav>
+
+  {# ===================================================================== #}
+  {# MAIN CONTENT #}
+  {# ===================================================================== #}
+  <main id="main-content" role="main">
+    {% block content %}{% endblock %}
+  </main>
+
+  {# ===================================================================== #}
+  {# FOOTER #}
+  {# ===================================================================== #}
+  <footer class="mt-12 py-6 border-t border-surface-border" role="contentinfo">
+    <div class="page-container flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
+      <p>
+        &copy; {% now "Y" %} CivicAI India &mdash;
+        Offline-first civic reporting for India.
+      </p>
+      <p class="mono text-xs">v2.0 · Privacy-aware · Offline-first</p>
+    </div>
+  </footer>
+
+  {# ===================================================================== #}
+  {# SCRIPTS — loaded in this order: #}
+  {# 1. app.js — shared utilities, GSAP animations, PWA registration #}
+  {# 2. report.js — camera + location (only needed on report page) #}
+  {# 3. dashboard.js — Chart.js init (no-ops on other pages) #}
+  {# 4. Per-page extension point #}
+  {# ===================================================================== #}
+  <script src="{% static 'js/app.js' %}" defer></script>
+  {% block extra_scripts %}{% endblock %}
+
+</body>
+
+</html>
