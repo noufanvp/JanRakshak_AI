@@ -28,7 +28,7 @@ SECRET_KEY = os.environ.get(
     "django-insecure-janrakshak-dev-key-CHANGE-IN-PRODUCTION-2026"
 )
 
-DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
+DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 
 ALLOWED_HOSTS = [
     h.strip()
@@ -84,7 +84,7 @@ MIDDLEWARE = [
 # ===========================================================================
 _cors_origins = os.environ.get(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:8000"
+    "http://localhost:3000,http://127.0.0.1:8000,http://localhost:8000,http://127.0.0.1:8081"
 )
 CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
 if _render_host:
@@ -101,8 +101,9 @@ CSRF_TRUSTED_ORIGINS = list(set(
 # ===========================================================================
 # SECURITY HEADERS (production only)
 # ===========================================================================
-if not DEBUG:
-    SECURE_SSL_REDIRECT = True
+_IS_RUNSERVER = any("runserver" in arg for arg in sys.argv)
+if not DEBUG and not _IS_RUNSERVER:
+    SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "True") == "True"
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
@@ -110,6 +111,9 @@ if not DEBUG:
     SECURE_HSTS_PRELOAD = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
+else:
+    SECURE_SSL_REDIRECT = False
+
 
 # ===========================================================================
 # DATABASE — PostgreSQL in production, SQLite for local dev

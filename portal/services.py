@@ -439,7 +439,7 @@ class PhotoAnalyzer:
         
         return details
 
-    def analyze_photo_data(self, photo_data: str) -> dict:
+    def analyze_photo_data(self, photo_data: str, photo_name: str = "") -> dict:
         # Check if Google Gemini API Key is configured
         import os
         from django.conf import settings
@@ -456,13 +456,14 @@ class PhotoAnalyzer:
                     b64 = photo_data
                     mime_type = "image/jpeg"
                 
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={api_key}"
+                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
                 headers = {"Content-Type": "application/json"}
                 
                 prompt = (
                     "Analyze the civic issue shown in this photo. "
                     "Determine the issue category, which must be exactly one of: "
                     "'Road Damage', 'Water Leakage', 'Garbage', 'Electricity', 'Streetlight', 'Flood', 'Fire Emergency', 'Tree Fall', 'Spam', or 'General Civic Issue'.\n\n"
+                    "If the image shows a streetlight, street lamp, lighting pole, or dark unlit street light fixture, classify it strictly as 'Streetlight'.\n\n"
                     "If the image does not represent any real, public civic issue (e.g. it is a selfie, advertisement, meme, screenshot of unrelated text, arbitrary household or indoor object, animal, food, or non-civic scene), classify it as 'Spam' under the 'Issue' category. If the issue is categorized as 'Spam', set the 'Priority' to 'Low', the 'Risk Score' to 0, and the 'Auto Description' should indicate that the image is flagged as invalid or irrelevant spam.\n\n"
                     "Return a JSON object conforming exactly to this schema:\n"
                     "{\n"
@@ -565,45 +566,75 @@ class PhotoAnalyzer:
             saturation = high_sat_count / max(1, len(pixels))
             brightness = ImageStat.Stat(image.convert("L")).mean[0]
 
-            scores = {}
-            # Fire Emergency requires bright flames (not just dull brown or rusty surfaces)
+            name_lower = (photo_name or "").lower()
+
+            scores = {
+                "Streetlight": 0.0,
+                "Water Leakage": 0.0,
+                "Road Damage": 0.0,
+                "Garbage": 0.0,
+                "Electricity": 0.0,
+                "Fire Emergency": 0.0,
+                "Flood": 0.0,
+                "Tree Fall": 0.0,
+            }
+
+            # --- Keyword Hints from Filename ---
+            if any(k in name_lower for k in ["light", "lamp", "pole", "street", "night", "dark", "bulb", "no light"]):
+                scores["Streetlight"] += 3.5
+            if any(k in name_lower for k in ["water", "leak", "pipe", "burst"]):
+                scores["Water Leakage"] += 3.5
+            if any(k in name_lower for k in ["pothole", "road", "crack", "asphalt", "tarmac"]):
+                scores["Road Damage"] += 3.5
+            if any(k in name_lower for k in ["garbage", "trash", "waste", "dump", "litter"]):
+                scores["Garbage"] += 3.5
+            if any(k in name_lower for k in ["fire", "flame", "smoke"]):
+                scores["Fire Emergency"] += 3.5
+
+            # --- Visual Pattern Heuristics ---
+            is_dark_night = brightness < 110
             is_bright_fire = (brightness > 135 and r_mean > 145 and saturation > 0.25)
-            scores["Fire Emergency"] = hues["red_orange"] * 2.3 + saturation * 1.2 - hues["blue_cyan"]
-            if not is_bright_fire:
-                scores["Fire Emergency"] -= 4.0
 
-            # Water Leakage: can be blue/cyan water, or a burst pipe spraying water (brown rust + high saturation + gray/spray)
-            water_leak_score = hues["blue_cyan"] * 2.6 + (1.0 if b_mean > r_mean + 8 else 0.0)
-            if hues["gray"] > 0.35 and hues["red_orange"] > 0.15 and not is_bright_fire:
-                water_leak_score += 1.8
-            elif (hues["yellow"] > 0.4 and hues["red_orange"] > 0.3 and saturation > 0.4) and not is_bright_fire:
-                water_leak_score += 2.0
-            scores["Water Leakage"] = water_leak_score
+            # Streetlight: Dark night scene + gray structural pole / fixture
+            if is_dark_night:
+                scores["Streetlight"] += 2.8 + (1.2 if brightness < 70 else 0.5)
+            if hues["gray"] > 0.2 and is_dark_night:
+                scores["Streetlight"] += 1.2
 
-            scores["Flood"] = hues["blue_cyan"] * 1.6 + (1.2 if (b_mean > r_mean + 15 and brightness > 120) else 0.0)
-            
-            # Road Damage: mostly gray asphalt, low saturation
-            road_damage_score = hues["gray"] * 2.0 + (1.0 - saturation) * 0.5
-            if hues["blue_cyan"] > 0.1:
-                road_damage_score -= 1.0
-            scores["Road Damage"] = road_damage_score
+            # Water Leakage: Require cyan/blue water component
+            water_leak_val = hues["blue_cyan"] * 3.0 + (1.5 if b_mean > r_mean + 12 else 0.0)
+            if b_mean < r_mean and hues["blue_cyan"] < 0.12:
+                water_leak_val = 0.0
+            scores["Water Leakage"] += water_leak_val
 
-            scores["Garbage"] = hues["green"] * 1.2 + hues["yellow"] * 0.8 - hues["blue_cyan"] * 0.6
-            
-            # Electricity sparks require high brightness or high saturation yellow in the dark
-            scores["Electricity"] = hues["yellow"] * 1.4 + (0.8 if (brightness < 100 and saturation > 0.7) else 0.0)
-            
-            scores["Tree Fall"] = hues["green"] * 1.5 + hues["gray"] * 0.4
-            scores["Streetlight"] = hues["gray"] * 0.9 + (0.6 if brightness < 80 else 0.0)
+            # Flood
+            scores["Flood"] += hues["blue_cyan"] * 1.6 + (1.2 if (b_mean > r_mean + 15 and brightness > 120) else 0.0)
+
+            # Road Damage: Daylight asphalt (brightness >= 110)
+            if brightness >= 110:
+                scores["Road Damage"] += hues["gray"] * 2.2 + (1.0 - saturation) * 0.8
+
+            # Garbage
+            scores["Garbage"] += hues["green"] * 1.2 + hues["yellow"] * 0.8
+
+            # Electricity
+            scores["Electricity"] += hues["yellow"] * 1.4 + (1.0 if (brightness < 100 and saturation > 0.6) else 0.0)
+
+            # Tree Fall
+            scores["Tree Fall"] += hues["green"] * 1.5 + (hues["gray"] * 0.4 if brightness >= 110 else 0.0)
+
+            # Fire Emergency
+            if is_bright_fire:
+                scores["Fire Emergency"] += hues["red_orange"] * 2.3 + saturation * 1.2
 
             issue = max(scores, key=scores.get)
             confidence_val = scores[issue]
-            if confidence_val >= 1.8:
-                confidence = "74%"
+            if confidence_val >= 2.0:
+                confidence = "82%"
             elif confidence_val >= 1.2:
-                confidence = "64%"
-            elif confidence_val >= 0.8:
-                confidence = "58%"
+                confidence = "72%"
+            elif confidence_val >= 0.6:
+                confidence = "62%"
             else:
                 issue = "General Civic Issue"
                 confidence = "52%"

@@ -95,7 +95,7 @@
   {# ===================================================================== #}
   {# CUSTOM CSS — design tokens, component classes, micro-interactions #}
   {# ===================================================================== #}
-  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=13" />
+  <link rel="stylesheet" href="{% static 'css/custom.css' %}?v=15" />
 
   {# ===================================================================== #}
   {# CHART.JS — for dashboard visualizations (loaded on all pages; #}
@@ -117,6 +117,12 @@
 </head>
 
 <body class="h-full bg-surface-bg antialiased">
+
+  {# Top progress loading bar for smooth page transitions #}
+  <div id="top-loader" class="top-loader-bar" aria-hidden="true"></div>
+
+  {# Skip to main content — first focusable element for keyboard users #}
+  <a href="#main-content" class="skip-link">Skip to main content</a>
 
   {# ===================================================================== #}
   {# NAVIGATION BAR #}
@@ -184,16 +190,24 @@
       <div class="flex items-center gap-2">
         {# Quick-submit CTA visible on desktop #}
         <a href="{% url 'portal:report_issue' %}" class="hidden md:inline-flex btn btn-sm text-sm"
-          style="background:var(--jr-accent); color:#fff;">
-          + New Report
+          style="background:var(--jr-accent); color:#fff;" aria-label="Submit a new civic report">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
+          </svg>
+          New Report
         </a>
 
         {# Mobile hamburger menu button #}
         <button id="mobile-menu-btn"
-          class="md:hidden flex items-center justify-center w-9 h-9 rounded-md text-white/70 hover:text-white hover:bg-white/10 transition"
-          aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobile-menu">
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          class="md:hidden flex items-center justify-center w-10 h-10 rounded-lg text-white/70 hover:text-white hover:bg-white/10 transition"
+          aria-label="Toggle navigation menu" aria-expanded="false" aria-controls="mobile-menu" type="button">
+          <svg id="menu-icon-open" class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            aria-hidden="true">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+          <svg id="menu-icon-close" class="w-5 h-5 hidden" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+            aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
           </svg>
         </button>
       </div>
@@ -201,32 +215,73 @@
 
     {# Mobile dropdown menu (hidden by default, toggled by JS) #}
     <div id="mobile-menu"
-      class="hidden md:hidden absolute top-16 left-0 right-0 bg-brand-secondary border-t border-white/10 z-50 px-4 py-3 flex flex-col gap-1"
+      class="hidden md:hidden absolute top-full left-0 right-0 bg-brand-secondary border-t border-white/10 z-50 px-4 py-3 flex flex-col gap-1 shadow-xl"
       role="navigation" aria-label="Mobile navigation">
-      <a href="{% url 'portal:dashboard' %}" class="nav-link w-full">Dashboard</a>
-      <a href="{% url 'portal:report_issue' %}" class="nav-link w-full">Report Issue</a>
-      <a href="{% url 'portal:view_reports' %}" class="nav-link w-full">Reports</a>
-      <a href="{% url 'portal:emergency' %}" class="nav-link w-full">Emergency</a>
+      <a href="{% url 'portal:dashboard' %}"
+        class="nav-link w-full {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <rect x="3" y="3" width="7" height="7" rx="1" stroke-width="1.75" />
+          <rect x="14" y="3" width="7" height="7" rx="1" stroke-width="1.75" />
+          <rect x="3" y="14" width="7" height="7" rx="1" stroke-width="1.75" />
+          <rect x="14" y="14" width="7" height="7" rx="1" stroke-width="1.75" />
+        </svg>
+        Dashboard
+      </a>
+      <a href="{% url 'portal:report_issue' %}"
+        class="nav-link w-full {% if request.resolver_match.url_name == 'report_issue' %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+            d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
+        </svg>
+        Report Issue
+      </a>
+      <a href="{% url 'portal:view_reports' %}"
+        class="nav-link w-full {% if request.resolver_match.url_name == 'view_reports' %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75"
+            d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z" />
+        </svg>
+        Reports
+      </a>
+      <a href="{% url 'portal:emergency' %}"
+        class="nav-link w-full {% if request.resolver_match.url_name == 'emergency' %}active{% endif %}">
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.75" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13
+               a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498A1 1 0
+               0121 15.72V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+        </svg>
+        Emergency
+      </a>
+      <div class="pt-2 border-t border-white/10 mt-1">
+        <a href="{% url 'portal:report_issue' %}" class="btn btn-sm w-full"
+          style="background:var(--jr-accent); color:#fff; justify-content:center;">
+          + New Report
+        </a>
+      </div>
     </div>
   </nav>
 
   {# ===================================================================== #}
   {# MAIN CONTENT #}
   {# ===================================================================== #}
-  <main id="main-content" role="main">
+  <main id="main-content" role="main" aria-label="Main content" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
 
   {# ===================================================================== #}
   {# FOOTER #}
   {# ===================================================================== #}
-  <footer class="mt-12 py-6 border-t border-surface-border" role="contentinfo">
+  <footer class="py-6 border-t border-surface-border" role="contentinfo">
     <div class="page-container flex flex-col sm:flex-row items-center justify-between gap-3 text-sm text-slate-500">
       <p>
         &copy; {% now "Y" %} CivicAI India &mdash;
-        Offline-first civic reporting for India.
+        AI Powered - first civic reporting for India.
       </p>
-      <p class="mono text-xs">v2.0 · Privacy-aware · Offline-first</p>
+      <div class="flex items-center gap-4">
+        <p class="mono text-xs">v2.0 &middot; Privacy-aware &middot; AI Powered</p>
+        <a href="{% url 'admin_panel:login' %}" class="text-xs text-slate-400 hover:text-slate-600 transition"
+          aria-label="Admin panel login">Admin</a>
+      </div>
     </div>
   </footer>
 

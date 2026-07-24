@@ -52,7 +52,6 @@ def _build_metrics():
     total = db.get_total_reports()
     avg_risk = db.get_average_risk()
     top_issue = db.get_most_common_issue()
-    co2 = round(total * 0.5, 1)
 
     issue_rows = db.get_reports_by_issue()
     priority_rows = db.get_reports_by_priority()
@@ -61,7 +60,6 @@ def _build_metrics():
         "total_reports": total,
         "avg_risk": avg_risk,
         "top_issue": top_issue[0] if top_issue else "None",
-        "co2_saved": co2,
         "issue_distribution": [
             {"label": row[0], "count": row[1]} for row in issue_rows
         ],
@@ -106,13 +104,14 @@ def analyze_photo(request):
     try:
         payload = json.loads(request.body)
         photo_data = payload.get("photo_data", "")
+        photo_name = payload.get("photo_name", "")
     except (json.JSONDecodeError, KeyError):
         return JsonResponse({"error": "Invalid JSON payload"}, status=400)
 
     if not photo_data:
         return JsonResponse({"error": "Photo data is required"}, status=400)
 
-    result = _services["photo_ai"].analyze_photo_data(photo_data)
+    result = _services["photo_ai"].analyze_photo_data(photo_data, photo_name=photo_name)
     return JsonResponse({
         "success": True,
         "analysis": result,
@@ -130,10 +129,13 @@ def preview_analysis(request):
     try:
         payload = json.loads(request.body)
         description = (payload.get("description") or "").strip()
-        location = (payload.get("location") or "").strip() or "Unknown"
+        location = (payload.get("location") or "").strip()
         photo_ai_analysis = payload.get("photo_ai_analysis")
     except (json.JSONDecodeError, KeyError):
         return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    if not location:
+        return JsonResponse({"error": "Location is required before submitting a report."}, status=400)
 
     if not description and not photo_ai_analysis:
         return JsonResponse({"error": "Description or photo analysis is required"}, status=400)
@@ -192,7 +194,7 @@ def submit_report(request):
     try:
         payload = json.loads(request.body)
         description = (payload.get("description") or "").strip()
-        location = (payload.get("location") or "").strip() or "Unknown"
+        location = (payload.get("location") or "").strip()
         latitude = payload.get("latitude")
         longitude = payload.get("longitude")
         photo_ai_analysis = payload.get("photo_ai_analysis")
@@ -200,6 +202,9 @@ def submit_report(request):
         corrected_department = (payload.get("corrected_department") or "").strip()
     except (json.JSONDecodeError, KeyError):
         return JsonResponse({"error": "Invalid JSON payload"}, status=400)
+
+    if not location:
+        return JsonResponse({"error": "Location is required before submitting a report."}, status=400)
 
     if not description and not photo_ai_analysis:
         return JsonResponse({"error": "Description or photo analysis is required"}, status=400)

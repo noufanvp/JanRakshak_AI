@@ -34,7 +34,7 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
         <input type="hidden" id="field-longitude" name="longitude" />
 
         <div class="content-panel mb-4">
-            <h2 class="text-base font-semibold text-slate-800 mb-4">Report Civic Issue</h2>
+            <h2 class="text-base font-semibold text-slate-800 mb-4" id="form-section-title">Report Civic Issue</h2>
 
             <div class="rounded-lg bg-slate-50 border border-surface-border p-3.5 mb-6">
                 <p class="text-sm text-slate-700">
@@ -60,16 +60,16 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
                             </svg>
                         </div>
                         <p class="drop-title">Drag &amp; drop a photo here</p>
-                        <p class="drop-sub">or <button type="button" id="drop-browse" class="drop-browse">browse files</button></p>
-                        <p class="drop-hint">JPG, PNG, WEBP · Max 10MB</p>
-                        <input type="file" id="field-photo-upload" accept="image/*" class="hidden" />
+                        <p class="drop-sub">or <button type="button" id="drop-browse" class="drop-browse" aria-label="Browse for photo files">browse files</button></p>
+                        <p class="drop-hint">JPG, PNG, WEBP &middot; Max 10 MB</p>
+                        <input type="file" id="field-photo-upload" accept="image/*" class="hidden" aria-label="Upload photo" />
                     </div>
 
                     <div id="drop-preview" class="drop-zone-preview hidden">
                         <img id="drop-preview-image" src="" alt="Issue photo preview" />
                         <div class="preview-overlay">
                             <span id="drop-preview-name" class="preview-filename"></span>
-                            <button type="button" id="drop-remove-photo" class="preview-remove" title="Remove photo" aria-label="Remove photo">x</button>
+                    <button type="button" id="drop-remove-photo" class="preview-remove" title="Remove photo" aria-label="Remove uploaded photo">&times;</button>
                         </div>
 
                         <div id="ai-scan-overlay" class="ai-scan-overlay hidden" aria-hidden="true">
@@ -114,22 +114,31 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
             <div class="mb-6">
                 <label class="form-label" for="field-description">
                     Description of Problem <span class="text-red-500" aria-hidden="true">*</span>
+                    <span class="sr-only">(required)</span>
                 </label>
                 <textarea id="field-description" name="description" class="form-textarea" rows="5"
                     placeholder="AI will auto-fill this from photo if uploaded. You can edit as needed."
-                    aria-describedby="description-hint" maxlength="1000"></textarea>
-                <p id="description-hint" class="mt-1.5 text-xs text-slate-500">
-                    If you upload an image, AI drafts this description automatically. Please verify and edit if needed.
-                </p>
+                    aria-describedby="description-hint description-count" maxlength="1000"
+                    required></textarea>
+                <div class="flex items-center justify-between mt-1.5">
+                    <p id="description-hint" class="text-xs text-slate-500">
+                        If you upload an image, AI drafts this description automatically. Please verify and edit.
+                    </p>
+                    <span id="description-count" class="text-xs text-slate-400 tabular-nums flex-shrink-0 ml-2" aria-live="polite">0/1000</span>
+                </div>
                 <p id="description-ai-status" class="mt-1 text-xs text-brand-primary hidden" aria-live="polite"></p>
             </div>
 
             {# --- 3) Location ---------------------------------------- #}
             <div class="mb-6">
-                <label class="form-label">Location</label>
-                <p class="text-xs text-slate-500 mb-3">
-                    Fetch your device location to auto-fill coordinates and place details. You can edit all fields.
-                </p>
+                <fieldset>
+                  <legend class="form-label">
+                    Location <span class="text-red-500" aria-hidden="true">*</span>
+                    <span class="sr-only">(required)</span>
+                  </legend>
+                  <p class="text-xs text-slate-500 mb-3">
+                    Fetch your device location to auto-fill coordinates and place details, or enter address manually below.
+                  </p>
 
                 <button type="button" id="btn-get-location" class="btn btn-secondary w-full sm:w-auto" aria-describedby="geo-status">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -172,19 +181,18 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
                     </div>
 
                     <div>
-                        <label class="form-label" for="field-location">Full Location Description</label>
-                        <input type="text" id="field-location" name="location" class="form-input" placeholder="Auto-filled from device location; editable" aria-describedby="location-hint" maxlength="250" />
+                        <label class="form-label" for="field-location">
+                            Full Location Description <span class="text-red-500" aria-hidden="true">*</span>
+                            <span class="sr-only">(required)</span>
+                        </label>
+                        <input type="text" id="field-location" name="location" class="form-input" placeholder="Enter location or click 'Get My Location' above" aria-describedby="location-hint" maxlength="250" required />
                         <p id="location-hint" class="mt-1.5 text-xs text-slate-500">
-                            Place, street, district, and state are auto-fetched when available. Edit details if needed.
+                            Location is required. Auto-filled when clicking 'Get My Location' or editable manually.
                         </p>
                     </div>
                 </div>
+                </fieldset>
             </div>
-
-            <p class="text-xs text-slate-500 mb-4">
-                Your report will be processed by an offline AI model. Personal information in the description will be
-                automatically redacted before storage.
-            </p>
 
             {# Privacy notice — GDPR / India PDPB style #}
             <div class="rounded-lg bg-cyan-50 border border-cyan-100 p-3.5 mb-5 flex gap-3">
@@ -211,23 +219,26 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
                         d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
                 <div>
-                    <p class="text-xs font-medium text-slate-700 mb-0.5">Offline AI Analysis</p>
+                    <p class="text-xs font-medium text-slate-700 mb-0.5">Hybrid AI Triage Engine</p>
                     <p class="text-xs text-slate-500">
-                        Classification runs entirely on your device using a TF-IDF Naive Bayes model. No cloud API calls
-                        are made. Works without internet.
+                        Powered by Google Gemini Cloud AI for high-accuracy multimodal analysis, paired with an offline AI model fallback for seamless operation when disconnected.
                     </p>
                 </div>
             </div>
 
-            <div class="flex justify-end items-center">
-                <button type="submit" id="btn-submit" class="btn btn-primary btn-lg">
+            <div class="flex justify-end items-center pt-2">
+                <button type="submit" id="btn-submit" class="btn btn-primary btn-lg"
+                        aria-describedby="submit-hint">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                             d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    Submit Report
+                    <span id="btn-submit-label">Submit Report</span>
                 </button>
             </div>
+            <p id="submit-hint" class="text-xs text-slate-400 text-right mt-2">
+                Report will be analyzed by AI before saving.
+            </p>
         </div>
 
     </form>{# /form #}
@@ -235,22 +246,30 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
     {# ============================================================ #}
     {# AI ANALYSIS POPUP MODAL #}
     {# ============================================================ #}
-    <div id="ai-modal-overlay" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden" aria-modal="true" role="dialog">
+    <div id="ai-modal-overlay"
+         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden"
+         aria-modal="true"
+         role="dialog"
+         aria-labelledby="ai-modal-title"
+         aria-describedby="ai-modal-desc">
         <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden transform transition-all duration-300 scale-95 opacity-0" id="ai-modal-box">
             
-            <!-- Modal Header -->
             <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
                 <div class="flex items-center gap-2.5">
-                    <div class="w-8 h-8 rounded-lg bg-cyan-100 text-brand-primary flex items-center justify-center font-bold text-sm">
+                    <div class="w-8 h-8 rounded-lg bg-cyan-100 text-brand-primary flex items-center justify-center font-bold text-sm" aria-hidden="true">
                         AI
                     </div>
                     <div>
-                        <h3 class="text-base font-bold text-slate-800">AI Analysis &amp; Verification</h3>
-                        <p class="text-xs text-slate-500">Review AI routing &amp; verify correctness before submitting</p>
+                        <h3 id="ai-modal-title" class="text-base font-bold text-slate-800">AI Analysis &amp; Verification</h3>
+                        <p id="ai-modal-desc" class="text-xs text-slate-500">Review AI routing &amp; verify correctness before submitting</p>
                     </div>
                 </div>
-                <button type="button" id="modal-close-btn" class="text-slate-400 hover:text-slate-600 rounded-lg p-1 transition" title="Close">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                <button type="button" id="modal-close-btn"
+                        class="text-slate-400 hover:text-slate-600 rounded-lg p-2 transition"
+                        aria-label="Close AI analysis dialog">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+                    </svg>
                 </button>
             </div>
 
@@ -396,4 +415,32 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
 {# Load Leaflet first, then report.js #}
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin="" defer></script>
 <script src="{% static 'js/report.js' %}" defer></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+  // --- Character counter for description ---
+  const textarea = document.getElementById('field-description');
+  const counter  = document.getElementById('description-count');
+  if (textarea && counter) {
+    function updateCounter() {
+      const len = textarea.value.length;
+      const max = parseInt(textarea.getAttribute('maxlength') || '1000');
+      counter.textContent = `${len}/${max}`;
+      counter.style.color = len > max * 0.9 ? '#DC2626' : '';
+    }
+    textarea.addEventListener('input', updateCounter);
+    updateCounter();
+  }
+
+  // --- Close modal on Escape key ---
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      const overlay = document.getElementById('ai-modal-overlay');
+      if (overlay && !overlay.classList.contains('hidden')) {
+        overlay.classList.add('hidden');
+        document.getElementById('btn-submit')?.focus();
+      }
+    }
+  });
+});
+</script>
 {% endblock %}

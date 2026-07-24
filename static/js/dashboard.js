@@ -165,47 +165,6 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // 3. Risk Trend — Placeholder for future time-series data
-  // ---------------------------------------------------------------------------
-
-  const trendCanvas = document.getElementById("chart-risk-trend");
-  if (trendCanvas) {
-    // Static placeholder line — replace with real time-series from DB
-    new Chart(trendCanvas, {
-      type: "line",
-      data: {
-        labels: ["Week 1", "Week 2", "Week 3", "Week 4"],
-        datasets: [
-          {
-            label: "Avg Risk Score",
-            data: [42, 58, 51, 67],
-            borderColor: COLORS.primary,
-            backgroundColor: `${COLORS.primary}22`,
-            fill: true,
-            tension: 0.4,
-            pointBackgroundColor: COLORS.primary,
-            pointRadius: 4,
-          },
-        ],
-      },
-      options: {
-        responsive: true,
-        maintainAspectRatio: false,
-        animation: { duration: 900 },
-        plugins: { legend: { display: false } },
-        scales: {
-          y: {
-            min: 0,
-            max: 100,
-            grid: { color: COLORS.border, borderDash: [4, 4] },
-            ticks: { callback: (v) => `${v}` },
-          },
-          x: { grid: { display: false } },
-        },
-      },
-    });
-  }
 
   // ---------------------------------------------------------------------------
   // 4. Real-time refresh button

@@ -11,11 +11,16 @@
         {# Header #}
         <header class="page-header flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
             <div>
-                <h1 class="page-title text-3xl font-extrabold text-slate-900 tracking-tight sm:text-4xl">Reported Issues</h1>
-                <p class="page-subtitle mt-2 text-sm text-slate-500">Browse all civic issues reported by citizens and their AI analysis.</p>
+                <h1 class="page-title">Reported Issues</h1>
+                <p class="page-subtitle mt-1">Browse all civic issues reported by citizens and their AI analysis.</p>
+                <p id="results-count" class="text-xs text-slate-400 mt-1" aria-live="polite" aria-atomic="true"></p>
             </div>
-            <a href="{% url 'portal:report_issue' %}" class="btn btn-primary flex-shrink-0">
-                + New Report
+            <a href="{% url 'portal:report_issue' %}" class="btn btn-primary flex-shrink-0"
+               aria-label="Submit a new civic report">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+                </svg>
+                New Report
             </a>
         </header>
 
@@ -57,15 +62,15 @@
                             </div>
                             
                             <div class="flex flex-col sm:flex-row sm:items-center gap-2">
-                                <label class="text-xs font-bold text-slate-500 uppercase tracking-wider">Status</label>
-                                <div class="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-300">
-                                    <button type="button" class="status-tab-btn active px-3 py-1 text-xs font-semibold rounded-md transition" data-status="active">
+                                <span class="text-xs font-bold text-slate-500 uppercase tracking-wider" id="status-label">Status</span>
+                                <div class="inline-flex rounded-lg p-0.5 bg-slate-100 border border-slate-300" role="group" aria-labelledby="status-label">
+                                    <button type="button" class="status-tab-btn active px-3 py-1 text-xs font-semibold rounded-md transition" data-status="active" aria-pressed="true">
                                         Active
                                     </button>
-                                    <button type="button" class="status-tab-btn px-3 py-1 text-xs font-semibold rounded-md transition" data-status="needs_review">
+                                    <button type="button" class="status-tab-btn px-3 py-1 text-xs font-semibold rounded-md transition" data-status="needs_review" aria-pressed="false">
                                         Needs Review
                                     </button>
-                                    <button type="button" class="status-tab-btn px-3 py-1 text-xs font-semibold rounded-md transition" data-status="spam">
+                                    <button type="button" class="status-tab-btn px-3 py-1 text-xs font-semibold rounded-md transition" data-status="spam" aria-pressed="false">
                                         Spam
                                     </button>
                                 </div>
@@ -100,13 +105,14 @@
                     </div>
 
                 {# Priority filter pills #}
-                <div class="flex flex-wrap items-center gap-2 border-t border-slate-200/60 pt-4">
-                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mr-2">Priority Level</span>
-                    <button class="filter-btn-dark priority-filter-btn active" data-priority="All">All</button>
-                    <button class="filter-btn-dark priority-filter-btn" data-priority="Critical">Critical</button>
-                    <button class="filter-btn-dark priority-filter-btn" data-priority="High">High</button>
-                    <button class="filter-btn-dark priority-filter-btn" data-priority="Medium">Medium</button>
-                    <button class="filter-btn-dark priority-filter-btn" data-priority="Low">Low</button>
+                <div class="flex flex-wrap items-center gap-2 border-t border-slate-200/60 pt-4"
+                     role="group" aria-label="Filter by priority level">
+                    <span class="text-xs font-bold text-slate-500 uppercase tracking-wider mr-2" aria-hidden="true">Priority Level</span>
+                    <button type="button" class="filter-btn-dark priority-filter-btn active" data-priority="All" aria-pressed="true" aria-label="Show all priorities">All</button>
+                    <button type="button" class="filter-btn-dark priority-filter-btn" data-priority="Critical" aria-pressed="false" aria-label="Filter by Critical priority">Critical</button>
+                    <button type="button" class="filter-btn-dark priority-filter-btn" data-priority="High" aria-pressed="false" aria-label="Filter by High priority">High</button>
+                    <button type="button" class="filter-btn-dark priority-filter-btn" data-priority="Medium" aria-pressed="false" aria-label="Filter by Medium priority">Medium</button>
+                    <button type="button" class="filter-btn-dark priority-filter-btn" data-priority="Low" aria-pressed="false" aria-label="Filter by Low priority">Low</button>
                 </div>
 
             </div>
@@ -281,13 +287,15 @@
         </div>
 
         {# Empty / No Results State #}
-        <div id="no-results-placeholder" class="hidden text-center py-20 bg-slate-100 border border-dashed border-slate-300 rounded-2xl">
-            <svg class="w-16 h-16 mx-auto mb-4 text-slate-400 opacity-80" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+        <div id="no-results-placeholder" class="hidden text-center py-20 bg-slate-50 border border-dashed border-slate-300 rounded-2xl">
+            <svg class="w-14 h-14 mx-auto mb-4 text-slate-300" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414A1 1 0 0121 9.414V19a2 2 0 01-2 2z" />
             </svg>
-            <h3 class="text-lg font-bold text-slate-900 mb-1">No reported issues found</h3>
-            <p class="text-sm text-slate-500 mb-6 max-w-md mx-auto">We couldn't find any issues matching your search terms or filters. Try adjusting your selections.</p>
-            <button onclick="document.getElementById('search-input').value=''; document.getElementById('filter-category').value='All'; document.getElementById('state-filter').value=''; document.getElementById('district-filter').value=''; document.getElementById('district-filter').disabled=true; document.querySelectorAll('.priority-filter-btn')[0].click();" class="btn btn-secondary border-slate-300 bg-slate-50 hover:bg-slate-100 text-slate-800 rounded-lg text-sm">
+            <h2 class="text-lg font-bold text-slate-700 mb-1">No reported issues found</h2>
+            <p class="text-sm text-slate-500 mb-6 max-w-sm mx-auto">We couldn't find any issues matching your filters. Try adjusting your selections.</p>
+            <button type="button" id="btn-reset-filters"
+                    class="btn btn-secondary border-slate-300 bg-white hover:bg-slate-100 text-slate-800 rounded-lg text-sm"
+                    aria-label="Reset all active filters">
                 Reset All Filters
             </button>
         </div>
@@ -463,6 +471,12 @@
                 noResults.classList.add("hidden");
                 cardsGrid.classList.remove("hidden");
             }
+
+            // Update results count
+            const countEl = document.getElementById('results-count');
+            if (countEl) {
+                countEl.textContent = visibleCount === 0 ? '' : `Showing ${visibleCount} result${visibleCount !== 1 ? 's' : ''}`;
+            }
         }
 
         // Set up event listeners
@@ -477,8 +491,12 @@
         }
         priorityButtons.forEach(btn => {
             btn.addEventListener("click", () => {
-                priorityButtons.forEach(b => b.classList.remove("active"));
+                priorityButtons.forEach(b => {
+                    b.classList.remove("active");
+                    b.setAttribute("aria-pressed", "false");
+                });
                 btn.classList.add("active");
+                btn.setAttribute("aria-pressed", "true");
                 activePriority = btn.getAttribute("data-priority");
                 updateList();
             });
@@ -486,12 +504,39 @@
 
         statusButtons.forEach(btn => {
             btn.addEventListener("click", () => {
-                statusButtons.forEach(b => b.classList.remove("active"));
+                statusButtons.forEach(b => {
+                    b.classList.remove("active");
+                    b.setAttribute("aria-pressed", "false");
+                });
                 btn.classList.add("active");
+                btn.setAttribute("aria-pressed", "true");
                 activeStatus = btn.getAttribute("data-status");
                 updateList();
             });
         });
+
+        // Wire reset button
+        const resetBtn = document.getElementById('btn-reset-filters');
+        if (resetBtn) {
+            resetBtn.addEventListener('click', () => {
+                if (searchInput) searchInput.value = '';
+                if (categorySelect) categorySelect.value = 'All';
+                if (sortSelect) sortSelect.value = 'date-desc';
+                if (stateFilter) stateFilter.value = '';
+                if (districtFilter) { districtFilter.value = ''; districtFilter.disabled = true; }
+                priorityButtons.forEach((b, i) => {
+                    b.classList.toggle("active", i === 0);
+                    b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+                });
+                statusButtons.forEach((b, i) => {
+                    b.classList.toggle("active", i === 0);
+                    b.setAttribute("aria-pressed", i === 0 ? "true" : "false");
+                });
+                activePriority = 'All';
+                activeStatus = 'active';
+                updateList();
+            });
+        }
 
 
         // Run initial listing update (filters pre-loaded search keywords)

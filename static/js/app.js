@@ -36,14 +36,45 @@ if ("serviceWorker" in navigator) {
 }
 
 // ==========================================================================
-// 2. GSAP PAGE-ENTER ANIMATION
+// 2. TOP LOADER & SMOOTH PAGE TRANSITION SYSTEM
 // ==========================================================================
+
+function startTopLoader() {
+  const loader = document.getElementById("top-loader");
+  if (!loader) return;
+  loader.classList.add("active");
+  loader.style.width = "35%";
+  setTimeout(() => {
+    if (loader.classList.contains("active")) {
+      loader.style.width = "75%";
+    }
+  }, 120);
+}
+
+function completeTopLoader() {
+  const loader = document.getElementById("top-loader");
+  if (!loader) return;
+  loader.style.width = "100%";
+  setTimeout(() => {
+    loader.classList.remove("active");
+    setTimeout(() => {
+      loader.style.width = "0%";
+    }, 200);
+  }, 250);
+}
 
 /**
  * Runs once GSAP is available (loaded via CDN in base.html).
  * Creates a cinematic stagger fade-in for the page content.
  */
 function initPageAnimations() {
+  completeTopLoader();
+
+  const mainContent = document.getElementById("main-content");
+  if (mainContent) {
+    mainContent.classList.remove("page-transitioning");
+  }
+
   if (typeof gsap === "undefined") return;
 
   // Register ScrollTrigger plugin if available
@@ -54,23 +85,25 @@ function initPageAnimations() {
   // ---------- Page-level enter animation ----------
   const tl = gsap.timeline({ defaults: { ease: "power3.out" } });
 
-  // Navbar slides down from above
-  tl.from("#main-nav", { y: -60, opacity: 0, duration: 0.5 });
+  // Main content container fade in
+  if (mainContent) {
+    tl.from(mainContent, { opacity: 0, y: 10, duration: 0.35 });
+  }
 
   // Hero / page header fades in
-  tl.from(".page-header", { y: 24, opacity: 0, duration: 0.55 }, "-=0.2");
+  tl.from(".page-header", { y: 18, opacity: 0, duration: 0.45 }, "-=0.2");
 
   // Metric cards stagger up
   tl.from(
     ".metric-card",
-    { y: 32, opacity: 0, duration: 0.5, stagger: 0.08 },
-    "-=0.3"
+    { y: 24, opacity: 0, duration: 0.4, stagger: 0.06 },
+    "-=0.25"
   );
 
   // Content panels stagger in
   tl.from(
     ".content-panel",
-    { y: 24, opacity: 0, duration: 0.45, stagger: 0.06 },
+    { y: 18, opacity: 0, duration: 0.4, stagger: 0.05 },
     "-=0.2"
   );
 
@@ -83,9 +116,9 @@ function initPageAnimations() {
           start: "top 92%",
           toggleActions: "play none none none",
         },
-        x: -16,
+        x: -12,
         opacity: 0,
-        duration: 0.35,
+        duration: 0.3,
         delay: i * 0.02,
         ease: "power2.out",
       });
@@ -93,8 +126,55 @@ function initPageAnimations() {
   }
 }
 
-// Run after DOM + GSAP are ready
-document.addEventListener("DOMContentLoaded", initPageAnimations);
+// Attach smooth click handlers to page links
+document.addEventListener("DOMContentLoaded", () => {
+  initPageAnimations();
+
+  document.addEventListener("click", (e) => {
+    const link = e.target.closest("a");
+    if (!link) return;
+
+    const href = link.getAttribute("href");
+    if (
+      !href ||
+      href.startsWith("#") ||
+      href.startsWith("javascript:") ||
+      href.startsWith("tel:") ||
+      href.startsWith("mailto:") ||
+      link.target === "_blank" ||
+      e.ctrlKey ||
+      e.metaKey ||
+      e.shiftKey ||
+      e.altKey
+    ) {
+      return;
+    }
+
+    try {
+      const targetUrl = new URL(link.href, window.location.origin);
+      if (targetUrl.origin === window.location.origin) {
+        // If clicking the current exact page URL, skip full reload animation
+        if (targetUrl.pathname === window.location.pathname && targetUrl.search === window.location.search) {
+          return;
+        }
+
+        const mainContent = document.getElementById("main-content");
+        startTopLoader();
+
+        if (mainContent) {
+          mainContent.classList.add("page-transitioning");
+        }
+
+        e.preventDefault();
+        setTimeout(() => {
+          window.location.href = link.href;
+        }, 160);
+      }
+    } catch (err) {
+      // Fallback normal navigation
+    }
+  });
+});
 
 // ==========================================================================
 // 3. MOBILE NAV TOGGLE
@@ -103,18 +183,50 @@ document.addEventListener("DOMContentLoaded", initPageAnimations);
 document.addEventListener("DOMContentLoaded", () => {
   const menuBtn = document.getElementById("mobile-menu-btn");
   const mobileMenu = document.getElementById("mobile-menu");
+  const iconOpen = document.getElementById("menu-icon-open");
+  const iconClose = document.getElementById("menu-icon-close");
+
+  function openMenu() {
+    mobileMenu.classList.remove("hidden");
+    menuBtn.setAttribute("aria-expanded", "true");
+    if (iconOpen) iconOpen.classList.add("hidden");
+    if (iconClose) iconClose.classList.remove("hidden");
+    if (typeof gsap !== "undefined") {
+      gsap.from(mobileMenu, { height: 0, opacity: 0, duration: 0.28, ease: "power2.out" });
+    }
+  }
+
+  function closeMenu() {
+    mobileMenu.classList.add("hidden");
+    menuBtn.setAttribute("aria-expanded", "false");
+    if (iconOpen) iconOpen.classList.remove("hidden");
+    if (iconClose) iconClose.classList.add("hidden");
+  }
 
   if (menuBtn && mobileMenu) {
     menuBtn.addEventListener("click", () => {
-      const isOpen = mobileMenu.classList.toggle("hidden");
+      const isHidden = mobileMenu.classList.contains("hidden");
+      if (isHidden) {
+        openMenu();
+      } else {
+        closeMenu();
+      }
+    });
 
-      if (typeof gsap !== "undefined" && !isOpen) {
-        gsap.from(mobileMenu, {
-          height: 0,
-          opacity: 0,
-          duration: 0.28,
-          ease: "power2.out",
-        });
+    // Close on Escape key
+    document.addEventListener("keydown", (e) => {
+      if (e.key === "Escape" && !mobileMenu.classList.contains("hidden")) {
+        closeMenu();
+        menuBtn.focus();
+      }
+    });
+
+    // Close on outside click
+    document.addEventListener("click", (e) => {
+      if (!menuBtn.contains(e.target) && !mobileMenu.contains(e.target)) {
+        if (!mobileMenu.classList.contains("hidden")) {
+          closeMenu();
+        }
       }
     });
   }

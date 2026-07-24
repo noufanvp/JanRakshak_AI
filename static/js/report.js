@@ -514,6 +514,7 @@ const ReportForm = (() => {
       aiScanOverlay.classList.remove("hidden");
     }
     updateDescriptionStatus("Analyzing uploaded image with AI...", "info");
+    const scanStartTime = Date.now();
     try {
       const response = await fetch("/api/analyze-photo/", {
         method: "POST",
@@ -521,7 +522,10 @@ const ReportForm = (() => {
           "Content-Type": "application/json",
           "X-CSRFToken": getCsrfToken(),
         },
-        body: JSON.stringify({ photo_data: photoDataUrl }),
+        body: JSON.stringify({
+          photo_data: photoDataUrl,
+          photo_name: uploadedPhotoFileName
+        }),
       });
 
       const data = await response.json();
@@ -546,9 +550,14 @@ const ReportForm = (() => {
       photoAIAnalysis = null;
       updateDescriptionStatus(`Photo analysis failed: ${err.message}`, "error");
     } finally {
-      if (aiScanOverlay) {
-        aiScanOverlay.classList.add("hidden");
-      }
+      // Ensure scan beam VFX completes at least one full sweep pass (1.2s minimum)
+      const elapsed = Date.now() - scanStartTime;
+      const remainingDelay = Math.max(0, 1200 - elapsed);
+      setTimeout(() => {
+        if (aiScanOverlay) {
+          aiScanOverlay.classList.add("hidden");
+        }
+      }, remainingDelay);
     }
   }
 
@@ -906,13 +915,22 @@ const ReportForm = (() => {
       e.preventDefault();
 
       const description = document.getElementById("field-description").value.trim();
-      const location = composeLocationText() || "Unknown";
+      const location = composeLocationText();
       const submitBtn = document.getElementById("btn-submit");
       const aiScanOverlay = document.getElementById("ai-scan-overlay");
       const hasPhoto = Boolean(capturedPhotoDataUrl);
 
       if (!description && !hasPhoto) {
         JR.toast("Please add a description or upload a photo before submitting.", "warning");
+        const descInput = document.getElementById("field-description");
+        if (descInput) descInput.focus();
+        return;
+      }
+
+      if (!location) {
+        JR.toast("Location is required. Please click 'Get My Location' or enter your area/landmark details.", "warning");
+        const locInput = document.getElementById("field-location") || document.getElementById("field-location-place");
+        if (locInput) locInput.focus();
         return;
       }
 

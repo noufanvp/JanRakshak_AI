@@ -6,6 +6,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>{% block title %}Admin{% endblock %} — JanRakshak Admin Panel</title>
   <meta name="robots" content="noindex, nofollow" />
+  <meta name="theme-color" content="#0B0F1A" />
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -178,14 +179,45 @@
     /* Pulse animation for review badge */
     @keyframes pulse-amber { 0%,100%{ opacity:1; } 50%{ opacity:.6; } }
     .animate-pulse-amber { animation: pulse-amber 1.8s ease-in-out infinite; }
+    /* Mobile sidebar */
+    @media (max-width: 1023px) {
+      .sidebar {
+        position: fixed;
+        top: 0; left: 0;
+        height: 100vh;
+        z-index: 1000;
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+      }
+      .sidebar.open {
+        transform: translateX(0);
+        box-shadow: 4px 0 24px rgba(0,0,0,0.5);
+      }
+      .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 999;
+        backdrop-filter: blur(2px);
+      }
+      .sidebar-overlay.open { display: block; }
+    }
+    @media (min-width: 1024px) {
+      .mobile-sidebar-btn { display: none !important; }
+      .sidebar-overlay { display: none !important; }
+    }
   </style>
   {% block extra_head %}{% endblock %}
 </head>
 
 <body class="h-full flex overflow-hidden">
 
+  <!-- Mobile sidebar overlay -->
+  <div id="sidebar-overlay" class="sidebar-overlay" aria-hidden="true"></div>
+
   <!-- ======== SIDEBAR ======== -->
-  <aside class="sidebar w-64 flex-shrink-0 flex flex-col h-screen overflow-y-auto">
+  <aside id="admin-sidebar" class="sidebar w-64 flex-shrink-0 flex flex-col h-screen overflow-y-auto" role="navigation" aria-label="Admin navigation">
 
     <!-- Logo -->
     <div class="px-5 py-5 border-b border-admin-border flex items-center gap-3">
@@ -257,13 +289,23 @@
   </aside>
 
   <!-- ======== MAIN AREA ======== -->
-  <div class="flex-1 flex flex-col overflow-hidden">
+  <div class="flex-1 flex flex-col overflow-hidden min-w-0">
 
     <!-- Top bar -->
     <header class="flex-shrink-0 flex items-center justify-between px-6 py-4 border-b border-admin-border" style="background:#0F1629;">
-      <div>
-        <h1 class="text-lg font-bold text-white">{% block page_title %}Dashboard{% endblock %}</h1>
-        <p class="text-xs text-admin-muted mt-0.5">{% block page_subtitle %}Overview of your civic reporting system{% endblock %}</p>
+      <div class="flex items-center gap-3">
+        <!-- Mobile sidebar toggle -->
+        <button id="sidebar-toggle" type="button"
+                class="mobile-sidebar-btn lg:hidden flex items-center justify-center w-9 h-9 rounded-lg bg-admin-hover text-admin-muted hover:text-white transition flex-shrink-0"
+                aria-label="Toggle navigation sidebar" aria-expanded="false" aria-controls="admin-sidebar">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"/>
+          </svg>
+        </button>
+        <div>
+          <h1 class="text-lg font-bold text-white">{% block page_title %}Dashboard{% endblock %}</h1>
+          <p class="text-xs text-admin-muted mt-0.5">{% block page_subtitle %}Overview of your civic reporting system{% endblock %}</p>
+        </div>
       </div>
       <div class="flex items-center gap-3">
         {% block header_actions %}{% endblock %}
@@ -297,6 +339,37 @@
       setTimeout(() => t.classList.add('show'), 10);
       setTimeout(() => t.classList.remove('show'), 3500);
     }
+  </script>
+
+  <script>
+    // Mobile sidebar toggle
+    (function() {
+      const toggle = document.getElementById('sidebar-toggle');
+      const sidebar = document.getElementById('admin-sidebar');
+      const overlay = document.getElementById('sidebar-overlay');
+      if (!toggle || !sidebar || !overlay) return;
+
+      function openSidebar() {
+        sidebar.classList.add('open');
+        overlay.classList.add('open');
+        overlay.removeAttribute('aria-hidden');
+        toggle.setAttribute('aria-expanded', 'true');
+      }
+      function closeSidebar() {
+        sidebar.classList.remove('open');
+        overlay.classList.remove('open');
+        overlay.setAttribute('aria-hidden', 'true');
+        toggle.setAttribute('aria-expanded', 'false');
+      }
+
+      toggle.addEventListener('click', () => {
+        sidebar.classList.contains('open') ? closeSidebar() : openSidebar();
+      });
+      overlay.addEventListener('click', closeSidebar);
+      document.addEventListener('keydown', e => {
+        if (e.key === 'Escape') closeSidebar();
+      });
+    })();
   </script>
 
   {% block extra_scripts %}{% endblock %}
