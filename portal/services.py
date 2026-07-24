@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 # ---------------------------------------------------------------------------
 # Paths (for audit log only — DB is handled by Django ORM)
 # ---------------------------------------------------------------------------
-_HERE = Path(__file__).resolve().parent.parent   # CivicAI_India/
+_HERE = Path(__file__).resolve().parent.parent   # JanRakshak_AI/
 AUDIT_LOG_PATH = _HERE / "data" / "audit.log"
 AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 

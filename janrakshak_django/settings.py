@@ -18,7 +18,7 @@ except ImportError:
 # ===========================================================================
 # PATHS
 # ===========================================================================
-BASE_DIR = Path(__file__).resolve().parent.parent  # CivicAI_India/
+BASE_DIR = Path(__file__).resolve().parent.parent  # JanRakshak_AI/
 
 # ===========================================================================
 # SECURITY & ENVIRONMENT
