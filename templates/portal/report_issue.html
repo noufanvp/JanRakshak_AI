@@ -18,7 +18,7 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
     <header class="page-header">
         <h1 class="page-title">Report a Civic Issue</h1>
         <p class="page-subtitle">
-            Your report is analyzed instantly by an offline AI model, privacy-sanitized, and routed to the correct
+            Your report is analyzed instantly by Google Gemini Online AI, privacy-sanitized, and routed to the correct
             department.
         </p>
     </header>
@@ -219,9 +219,9 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
                         d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
                 </svg>
                 <div>
-                    <p class="text-xs font-medium text-slate-700 mb-0.5">Hybrid AI Triage Engine</p>
+                    <p class="text-xs font-medium text-slate-700 mb-0.5">Google Gemini Online AI Triage Engine</p>
                     <p class="text-xs text-slate-500">
-                        Powered by Google Gemini Cloud AI for high-accuracy multimodal analysis, paired with an offline AI model fallback for seamless operation when disconnected.
+                        Powered by Google Gemini Cloud AI for high-accuracy multimodal analysis, real-time civic issue classification, automated priority scoring, and intelligent municipal department routing.
                     </p>
                 </div>
             </div>
@@ -241,20 +241,21 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
             </p>
         </div>
 
-    </form>{# /form #}
+</div>{# /page-container #}
 
     {# ============================================================ #}
     {# AI ANALYSIS POPUP MODAL #}
     {# ============================================================ #}
     <div id="ai-modal-overlay"
-         class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-sm hidden"
+         class="fixed inset-0 w-screen h-screen z-[99999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-3 sm:p-6 overflow-y-auto hidden"
          aria-modal="true"
          role="dialog"
          aria-labelledby="ai-modal-title"
          aria-describedby="ai-modal-desc">
-        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200 overflow-hidden transform transition-all duration-300 scale-95 opacity-0" id="ai-modal-box">
+        <div class="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] flex flex-col shadow-2xl border border-slate-200/90 overflow-hidden transform transition-all duration-300 scale-95 opacity-0" id="ai-modal-box">
             
-            <div class="flex items-center justify-between px-6 py-4 border-b border-slate-100 bg-slate-50/80">
+            <!-- Modal Header (Pinned Top) -->
+            <div class="flex items-center justify-between px-5 sm:px-6 py-4 border-b border-slate-100 bg-slate-50/90 flex-shrink-0 z-10 shadow-xs">
                 <div class="flex items-center gap-2.5">
                     <div class="w-8 h-8 rounded-lg bg-cyan-100 text-brand-primary flex items-center justify-center font-bold text-sm" aria-hidden="true">
                         AI
@@ -273,8 +274,8 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
                 </button>
             </div>
 
-            <!-- Modal Body (Scrollable) -->
-            <div class="p-6 overflow-y-auto space-y-5" id="modal-main-content">
+            <!-- Modal Body (Scrollable Content Zone) -->
+            <div class="p-5 sm:p-6 overflow-y-auto space-y-5 flex-1 min-h-0 custom-scrollbar" id="modal-main-content">
                 
                 <!-- Duplicate warning & Upvote CTA (if duplicate) -->
                 <div id="modal-duplicate-warning" class="hidden rounded-xl bg-amber-50 border border-amber-200 p-3.5 text-xs text-amber-900 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-xs">
@@ -398,8 +399,8 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
 
             </div>
 
-            <!-- Modal Footer -->
-            <div class="flex items-center justify-end gap-3 px-6 py-4 border-t border-slate-100 bg-slate-50/80" id="modal-footer-actions">
+            <!-- Modal Footer (Pinned Bottom) -->
+            <div class="flex items-center justify-end gap-3 px-5 sm:px-6 py-4 border-t border-slate-100 bg-slate-50/90 flex-shrink-0 z-10" id="modal-footer-actions">
                 <button type="button" id="btn-modal-cancel" class="btn btn-ghost btn-sm">Cancel</button>
                 <button type="button" id="btn-modal-confirm" class="btn btn-primary btn-sm">
                     Confirm &amp; Submit Report
@@ -407,8 +408,6 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
             </div>
         </div>
     </div>
-
-</div>{# /page-container #}
 {% endblock %}
 
 {% block extra_scripts %}

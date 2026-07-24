@@ -28,6 +28,8 @@ SECRET_KEY = os.environ.get(
     "django-insecure-janrakshak-dev-key-CHANGE-IN-PRODUCTION-2026"
 )
 
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
+
 DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
 
 ALLOWED_HOSTS = [

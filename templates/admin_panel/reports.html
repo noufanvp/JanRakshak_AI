@@ -205,7 +205,9 @@ async function deleteReport(id) {
 
 // ---- Detail Modal ----
 async function viewDetail(id) {
-  document.getElementById('detail-modal').classList.add('open');
+  const m = document.getElementById('detail-modal');
+  if (m && m.parentElement !== document.body) document.body.appendChild(m);
+  m.classList.add('open');
   document.getElementById('modal-content').innerHTML = `
     <div class="animate-pulse space-y-3">
       <div class="h-4 bg-slate-700 rounded w-3/4"></div>

@@ -9,6 +9,8 @@ from . import views
 from .services import Database
 
 
+from unittest.mock import patch
+
 class DuplicateUpvoteFlowTests(TestCase):
 	@classmethod
 	def setUpClass(cls):
@@ -16,19 +18,30 @@ class DuplicateUpvoteFlowTests(TestCase):
 		cls._tmp_dir = tempfile.TemporaryDirectory()
 		cls._original_db = views._services["db"]
 
-		test_db_path = Path(cls._tmp_dir.name) / "reports_test.db"
-		test_db = Database(test_db_path)
-		test_db.create_database()
+		test_db = Database()
 		views._services["db"] = test_db
-
-	@classmethod
-	def tearDownClass(cls):
-		views._services["db"] = cls._original_db
-		cls._tmp_dir.cleanup()
-		super().tearDownClass()
 
 	def setUp(self):
 		self.db = views._services["db"]
+		self.ai_patcher = patch.object(
+			views._services["ai"],
+			"analyze",
+			return_value={
+				"Issue": "Road Damage",
+				"Priority": "Medium",
+				"Department": "Public Works Department (PWD)",
+				"Confidence": "85%",
+				"Risk Score": 50,
+				"Reason": "Test AI reason",
+				"Suggested Action": "Inspect road",
+				"Advice": "Drive carefully",
+			}
+		)
+		self.ai_patcher.start()
+
+	def tearDown(self):
+		self.ai_patcher.stop()
+		super().tearDown()
 
 	def _create_report(self, description="Large pothole near bus stand", location="MG Road"):
 		self.db.save_report(

@@ -119,23 +119,31 @@
         </div>
 
         {# Cards grid #}
-        <div id="reports-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div id="reports-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mt-8">
             {% for report in reports %}
             <div class="report-card-item" 
                  data-id="{{ report.id }}"
                  data-issue="{{ report.issue }}"
                  data-priority="{{ report.priority }}"
                  data-department="{{ report.department }}"
-                  data-location="{{ report.location|lower }}"
+                 data-location="{{ report.location }}"
                  data-risk="{{ report.risk_score }}"
                  data-spam="{{ report.is_spam|default:0 }}"
+                 data-photo="{{ report.photo_path|default:'' }}"
+                 data-description="{{ report.description }}"
+                 data-confidence="{{ report.confidence }}"
+                 data-action="{{ report.suggested_action|default:'' }}"
+                 data-advice="{{ report.advice|default:'' }}"
+                 data-reason="{{ report.reason|default:'' }}"
+                 data-upvotes="{{ report.upvotes|default:1 }}"
+                 data-date-str="{% if report.submitted_at %}{{ report.submitted_at|date:'M j, Y' }}{% else %}Recent{% endif %}"
                  data-date="{% if report.submitted_at %}{{ report.submitted_at|date:'U' }}{% else %}0{% endif %}"
                  data-text="{{ report.issue }} {{ report.description }} {{ report.location }} {{ report.department }}">
                  
-                <div class="report-card-premium">
+                <div class="report-card-premium flex flex-col h-full">
                     
                     {# Image Header #}
-                    <div class="report-card-img-wrapper">
+                    <div class="report-card-img-wrapper cursor-pointer btn-open-modal-trigger">
                         {% if report.photo_path %}
                             <img src="{{ report.photo_path }}" alt="{{ report.issue }}" class="report-card-img" />
                         {% else %}
@@ -188,96 +196,106 @@
                     </div>
 
                     {# Body #}
-                    <div class="report-card-body">
+                    <div class="report-card-body flex-grow flex flex-col justify-between">
                         
-                        {# Badge & Date & Upvotes #}
-                        <div class="report-card-badge-container flex items-center justify-between">
-                            <div class="flex items-center gap-1.5">
-                                {% if report.is_spam == 1 %}
-                                    <span class="badge bg-red-100 text-red-800 border border-red-200">Spam</span>
-                                {% elif report.is_spam == 2 %}
-                                    <span class="badge bg-amber-100 text-amber-800 border border-amber-200 animate-pulse">Needs Review</span>
-                                {% else %}
-                                    <span class="badge 
-                                        {% if report.priority == 'Critical' %}badge-critical
-                                        {% elif report.priority == 'High' %}badge-high
-                                        {% elif report.priority == 'Medium' %}badge-medium
-                                        {% else %}badge-low{% endif %}">
-                                        {{ report.priority }}
+                        <div>
+                            {# Badge & Date & Upvotes #}
+                            <div class="report-card-badge-container flex items-center justify-between">
+                                <div class="flex items-center gap-1.5">
+                                    {% if report.is_spam == 1 %}
+                                        <span class="badge bg-red-100 text-red-800 border border-red-200">Spam</span>
+                                    {% elif report.is_spam == 2 %}
+                                        <span class="badge bg-amber-100 text-amber-800 border border-amber-200 animate-pulse">Needs Review</span>
+                                    {% else %}
+                                        <span class="badge 
+                                            {% if report.priority == 'Critical' %}badge-critical
+                                            {% elif report.priority == 'High' %}badge-high
+                                            {% elif report.priority == 'Medium' %}badge-medium
+                                            {% else %}badge-low{% endif %}">
+                                            {{ report.priority }}
+                                        </span>
+                                    {% endif %}
+                                    <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200" title="Community Upvotes">
+                                        👍 {{ report.upvotes|default:1 }}
                                     </span>
-                                {% endif %}
-                                <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200" title="Community Upvotes">
-                                    👍 {{ report.upvotes|default:1 }}
+                                </div>
+                                <span class="text-xs text-slate-500 font-medium flex items-center gap-1">
+                                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                                    </svg>
+                                    {% if report.submitted_at %}
+                                        {{ report.submitted_at|date:"M j, Y" }}
+                                    {% else %}
+                                        Recent
+                                    {% endif %}
                                 </span>
                             </div>
-                            <span class="text-xs text-slate-500 font-medium flex items-center gap-1">
-                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+
+                            {# Title #}
+                            <h2 class="report-card-title cursor-pointer hover:text-cyan-700 transition btn-open-modal-trigger">{{ report.issue }}</h2>
+
+                            {# Location #}
+                            <div class="report-card-location">
+                                <svg class="w-3.5 h-3.5 flex-shrink-0 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
                                 </svg>
-                                {% if report.submitted_at %}
-                                    {{ report.submitted_at|date:"M j, Y" }}
-                                {% else %}
-                                    Recent
-                                {% endif %}
-                            </span>
-                        </div>
-
-                        {# Title #}
-                        <h2 class="report-card-title">{{ report.issue }}</h2>
-
-                        {# Location #}
-                        <div class="report-card-location">
-                            <svg class="w-3.5 h-3.5 flex-shrink-0 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                            </svg>
-                            <span class="truncate" title="{{ report.location }}">{{ report.location }}</span>
-                        </div>
-
-                        {# Description #}
-                        <p class="report-card-desc line-clamp-3">{{ report.description }}</p>
-
-                        {# AI Analysis section #}
-                        <div class="report-card-ai-analysis">
-                            <div class="report-card-ai-header">
-                                <svg class="w-3.5 h-3.5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-                                </svg>
-                                AI Analysis
+                                <span class="truncate" title="{{ report.location }}">{{ report.location }}</span>
                             </div>
-                            
-                            <div class="report-card-ai-grid space-y-1.5">
-                                <div class="flex items-center justify-between">
-                                    <span class="report-card-ai-label">Routing Dept:</span>
-                                    <span class="report-card-ai-val text-right truncate max-w-[150px]" title="{{ report.department }}">{{ report.department }}</span>
+
+                            {# Description #}
+                            <p class="report-card-desc line-clamp-3">{{ report.description }}</p>
+
+                            {# AI Analysis section #}
+                            <div class="report-card-ai-analysis">
+                                <div class="report-card-ai-header">
+                                    <svg class="w-3.5 h-3.5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                                    </svg>
+                                    AI Analysis
                                 </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="report-card-ai-label">AI Confidence:</span>
-                                    <span class="report-card-ai-val">{{ report.confidence }}</span>
-                                </div>
-                                <div class="flex items-center justify-between">
-                                    <span class="report-card-ai-label">Risk Level:</span>
-                                    <div class="flex items-center gap-2">
-                                        <div class="w-16 bg-slate-200 rounded-full h-1.5 overflow-hidden">
-                                            <div class="h-full rounded-full 
-                                                {% if report.risk_score >= 80 %}bg-red-500
-                                                {% elif report.risk_score >= 50 %}bg-amber-500
-                                                {% else %}bg-emerald-500{% endif %}" 
-                                                style="width: {{ report.risk_score }}%">
+                                
+                                <div class="flex flex-col gap-2 my-2 text-xs">
+                                    <div class="flex items-center justify-between gap-2 min-w-0">
+                                        <span class="report-card-ai-label flex-shrink-0">Routing Dept:</span>
+                                        <span class="report-card-ai-val text-right truncate text-slate-800 font-bold max-w-[180px]" title="{{ report.department }}">{{ report.department }}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2 min-w-0">
+                                        <span class="report-card-ai-label flex-shrink-0">AI Confidence:</span>
+                                        <span class="report-card-ai-val text-right font-semibold text-cyan-700 whitespace-nowrap">{{ report.confidence }}</span>
+                                    </div>
+                                    <div class="flex items-center justify-between gap-2 min-w-0">
+                                        <span class="report-card-ai-label flex-shrink-0">Risk Level:</span>
+                                        <div class="flex items-center gap-2 flex-shrink-0">
+                                            <div class="w-16 bg-slate-200 rounded-full h-1.5 overflow-hidden">
+                                                <div class="h-full rounded-full 
+                                                    {% if report.risk_score >= 80 %}bg-red-500
+                                                    {% elif report.risk_score >= 50 %}bg-amber-500
+                                                    {% else %}bg-emerald-500{% endif %}" 
+                                                    style="width: {{ report.risk_score }}%">
+                                                </div>
                                             </div>
+                                            <span class="report-card-ai-val font-mono">{{ report.risk_score }}/100</span>
                                         </div>
-                                        <span class="report-card-ai-val">{{ report.risk_score }}/100</span>
                                     </div>
                                 </div>
-                            </div>
 
-                            {% if report.suggested_action %}
-                                <div class="report-card-ai-action">
-                                    {{ report.suggested_action }}
-                                </div>
-                            {% endif %}
+                                {% if report.suggested_action %}
+                                    <div class="report-card-ai-action">
+                                        {{ report.suggested_action }}
+                                    </div>
+                                {% endif %}
+                            </div>
                         </div>
 
+                        {# View Details CTA Button #}
+                        <button type="button" class="btn-open-modal-trigger mt-4 w-full py-2.5 px-3 rounded-xl text-xs font-semibold text-cyan-800 bg-cyan-50 hover:bg-cyan-100 hover:text-cyan-900 border border-cyan-200/80 transition flex items-center justify-center gap-2 shadow-sm">
+                            <svg class="w-4 h-4 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                            </svg>
+                            View Full Details
+                        </button>
 
                     </div>
                 </div>
@@ -302,6 +320,115 @@
 
     </div>
 </div>
+
+{# Report Detail Pop-out Modal #}
+<div id="report-detail-modal" class="fixed inset-0 w-screen h-screen z-[9999] bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 sm:p-6 overflow-y-auto hidden" role="dialog" aria-modal="true" aria-labelledby="modal-issue-title">
+    <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] flex flex-col overflow-hidden border border-slate-200 transform transition-all duration-300 scale-95 opacity-0" id="modal-container">
+        
+        {# Modal Header #}
+        <div class="px-6 py-4 border-b border-slate-100 flex items-center justify-between bg-slate-50/90 sticky top-0 z-10">
+            <div class="flex items-center gap-2">
+                <span id="modal-badge" class="badge"></span>
+                <span id="modal-upvotes" class="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-semibold bg-cyan-50 text-cyan-700 border border-cyan-200"></span>
+            </div>
+            <button type="button" id="modal-close-btn" class="p-2 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-200/60 transition" aria-label="Close modal">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+            </button>
+        </div>
+
+        {# Modal Body (Scrollable) #}
+        <div class="p-6 overflow-y-auto space-y-6">
+            
+            {# Image Container #}
+            <div id="modal-image-wrapper" class="rounded-xl overflow-hidden bg-slate-100 border border-slate-200 shadow-inner max-h-80 flex items-center justify-center">
+                <img id="modal-image" src="" alt="Report photo detail" class="w-full h-full object-contain max-h-80 bg-slate-900/5 hidden" />
+                <div id="modal-image-placeholder" class="w-full h-48 flex flex-col items-center justify-center bg-gradient-to-tr from-slate-100 to-cyan-50 text-slate-400 gap-2">
+                    <svg class="w-12 h-12 text-cyan-600/60" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <span class="text-xs font-medium text-slate-500">No Photo Evidence Attached</span>
+                </div>
+            </div>
+
+            {# Title & Meta #}
+            <div>
+                <h2 id="modal-issue-title" class="text-xl font-bold text-slate-900 tracking-tight"></h2>
+                <div class="flex flex-wrap items-center gap-2 text-xs text-slate-500 mt-1.5">
+                    <svg class="w-4 h-4 text-cyan-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                    </svg>
+                    <span id="modal-location" class="font-semibold text-slate-800"></span>
+                    <span>&middot;</span>
+                    <span id="modal-date"></span>
+                </div>
+            </div>
+
+            {# Description Section #}
+            <div class="bg-slate-50 rounded-xl p-4 border border-slate-200">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Full Issue Description</h3>
+                <p id="modal-description" class="text-sm text-slate-700 leading-relaxed whitespace-pre-line"></p>
+            </div>
+
+            {# AI Analysis Section #}
+            <div class="bg-cyan-50/60 rounded-xl p-4 border border-cyan-200/90 space-y-3">
+                <div class="flex items-center gap-2 text-cyan-900 font-bold text-sm">
+                    <svg class="w-5 h-5 text-cyan-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                    </svg>
+                    Gemini AI Triage Breakdown
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                    <div class="bg-white p-3 rounded-lg border border-cyan-100 shadow-sm">
+                        <span class="text-slate-400 block font-semibold">Routing Department</span>
+                        <span id="modal-department" class="font-bold text-slate-800 text-sm mt-0.5 block"></span>
+                    </div>
+                    <div class="bg-white p-3 rounded-lg border border-cyan-100 shadow-sm">
+                        <span class="text-slate-400 block font-semibold">AI Classification Confidence</span>
+                        <span id="modal-confidence" class="font-bold text-cyan-700 text-sm mt-0.5 block"></span>
+                    </div>
+                </div>
+
+                <div class="bg-white p-3 rounded-lg border border-cyan-100 shadow-sm text-xs">
+                    <div class="flex items-center justify-between mb-1.5">
+                        <span class="text-slate-400 font-semibold">Risk Level Score</span>
+                        <span id="modal-risk-score" class="font-bold text-slate-800"></span>
+                    </div>
+                    <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div id="modal-risk-bar" class="h-full rounded-full transition-all duration-500"></div>
+                    </div>
+                </div>
+
+                <div id="modal-reason-box" class="bg-white p-3 rounded-lg border border-cyan-100 shadow-sm text-xs space-y-1 hidden">
+                    <span class="text-slate-500 font-bold block">AI Classification Rationale</span>
+                    <p id="modal-reason" class="text-slate-700 leading-normal"></p>
+                </div>
+
+                <div id="modal-action-box" class="bg-white p-3 rounded-lg border border-cyan-100 shadow-sm text-xs space-y-1 hidden">
+                    <span class="text-cyan-800 font-bold block">Recommended Authority Action</span>
+                    <p id="modal-action" class="text-slate-700 leading-normal"></p>
+                </div>
+
+                <div id="modal-advice-box" class="bg-amber-50/70 p-3 rounded-lg border border-amber-200 text-xs space-y-1 hidden">
+                    <span class="text-amber-800 font-bold block">Citizen Advisory</span>
+                    <p id="modal-advice" class="text-amber-900 leading-normal"></p>
+                </div>
+            </div>
+
+        </div>
+
+        {# Modal Footer #}
+        <div class="px-6 py-3.5 border-t border-slate-100 bg-slate-50 flex items-center justify-end">
+            <button type="button" id="modal-footer-close-btn" class="btn btn-secondary text-sm px-5 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 hover:bg-slate-100 transition">
+                Close
+            </button>
+        </div>
+
+    </div>
+</div>
 {% endblock %}
 
 {% block extra_scripts %}
@@ -317,6 +444,181 @@
         const cardsGrid = document.getElementById("reports-grid");
         const noResults = document.getElementById("no-results-placeholder");
         const cards = Array.from(document.querySelectorAll(".report-card-item"));
+
+        // Modal Elements
+        const modal = document.getElementById("report-detail-modal");
+        const modalContainer = document.getElementById("modal-container");
+        const modalCloseBtn = document.getElementById("modal-close-btn");
+        const modalFooterCloseBtn = document.getElementById("modal-footer-close-btn");
+
+        const modalBadge = document.getElementById("modal-badge");
+        const modalUpvotes = document.getElementById("modal-upvotes");
+        const modalImg = document.getElementById("modal-image");
+        const modalImgPlaceholder = document.getElementById("modal-image-placeholder");
+        const modalTitle = document.getElementById("modal-issue-title");
+        const modalLocation = document.getElementById("modal-location");
+        const modalDate = document.getElementById("modal-date");
+        const modalDesc = document.getElementById("modal-description");
+        const modalDept = document.getElementById("modal-department");
+        const modalConf = document.getElementById("modal-confidence");
+        const modalRiskScore = document.getElementById("modal-risk-score");
+        const modalRiskBar = document.getElementById("modal-risk-bar");
+        const modalReasonBox = document.getElementById("modal-reason-box");
+        const modalReason = document.getElementById("modal-reason");
+        const modalActionBox = document.getElementById("modal-action-box");
+        const modalAction = document.getElementById("modal-action");
+        const modalAdviceBox = document.getElementById("modal-advice-box");
+        const modalAdvice = document.getElementById("modal-advice");
+
+        function openModal(card) {
+            if (!modal || !card) return;
+            
+            const issue = card.getAttribute("data-issue") || "Civic Issue";
+            const priority = card.getAttribute("data-priority") || "Medium";
+            const spam = card.getAttribute("data-spam") || "0";
+            const location = card.getAttribute("data-location") || "Location not specified";
+            const photo = card.getAttribute("data-photo") || "";
+            const description = card.getAttribute("data-description") || "No detailed description provided.";
+            const department = card.getAttribute("data-department") || "Municipal Corporation";
+            const confidence = card.getAttribute("data-confidence") || "85%";
+            const risk = parseInt(card.getAttribute("data-risk") || "50");
+            const action = card.getAttribute("data-action") || "";
+            const advice = card.getAttribute("data-advice") || "";
+            const reason = card.getAttribute("data-reason") || "";
+            const upvotes = card.getAttribute("data-upvotes") || "1";
+            const dateStr = card.getAttribute("data-date-str") || "Recent";
+
+            // Set badge
+            modalBadge.className = "badge";
+            if (spam === "1") {
+                modalBadge.textContent = "Spam";
+                modalBadge.classList.add("bg-red-100", "text-red-800", "border", "border-red-200");
+            } else if (spam === "2") {
+                modalBadge.textContent = "Needs Review";
+                modalBadge.classList.add("bg-amber-100", "text-amber-800", "border", "border-amber-200");
+            } else {
+                modalBadge.textContent = priority;
+                if (priority === "Critical") modalBadge.classList.add("badge-critical");
+                else if (priority === "High") modalBadge.classList.add("badge-high");
+                else if (priority === "Medium") modalBadge.classList.add("badge-medium");
+                else modalBadge.classList.add("badge-low");
+            }
+
+            modalUpvotes.textContent = `👍 ${upvotes} Upvotes`;
+
+            // Photo image or placeholder
+            if (photo) {
+                modalImg.src = photo;
+                modalImg.classList.remove("hidden");
+                modalImgPlaceholder.classList.add("hidden");
+            } else {
+                modalImg.classList.add("hidden");
+                modalImgPlaceholder.classList.remove("hidden");
+            }
+
+            // Fill text fields
+            modalTitle.textContent = issue;
+            modalLocation.textContent = location;
+            modalDate.textContent = dateStr;
+            modalDesc.textContent = description;
+            modalDept.textContent = department;
+            modalConf.textContent = confidence;
+
+            // Risk bar
+            modalRiskScore.textContent = `${risk}/100`;
+            modalRiskBar.style.width = `${Math.min(100, Math.max(0, risk))}%`;
+            modalRiskBar.className = "h-full rounded-full transition-all duration-500 " + 
+                (risk >= 80 ? "bg-red-500" : risk >= 50 ? "bg-amber-500" : "bg-emerald-500");
+
+            // Optional boxes
+            if (reason) {
+                modalReason.textContent = reason;
+                modalReasonBox.classList.remove("hidden");
+            } else {
+                modalReasonBox.classList.add("hidden");
+            }
+
+            if (action) {
+                modalAction.textContent = action;
+                modalActionBox.classList.remove("hidden");
+            } else {
+                modalActionBox.classList.add("hidden");
+            }
+
+            if (advice) {
+                modalAdvice.textContent = advice;
+                modalAdviceBox.classList.remove("hidden");
+            } else {
+                modalAdviceBox.classList.add("hidden");
+            }
+
+            // Save current scroll position
+            savedScrollPos = window.scrollY || window.pageYOffset;
+
+            // Blur active element (submit/card button) so browser does not scroll back to focus target
+            if (document.activeElement && typeof document.activeElement.blur === "function") {
+                document.activeElement.blur();
+            }
+
+            // Ensure modal is attached to document.body outside of transformed containers
+            if (modal.parentElement !== document.body) {
+                document.body.appendChild(modal);
+            }
+
+            // Lock body scrolling
+            modal.classList.remove("hidden");
+            document.body.style.overflow = "hidden";
+            document.documentElement.style.overflow = "hidden";
+            
+            // Reset inner modal scroll positions to top 0
+            if (modalContainer) modalContainer.scrollTop = 0;
+            const modalBodyScroll = modal.querySelector(".overflow-y-auto");
+            if (modalBodyScroll) modalBodyScroll.scrollTop = 0;
+            modal.scrollTop = 0;
+
+            if (modalCloseBtn) modalCloseBtn.focus();
+            setTimeout(() => {
+                modalContainer.classList.remove("scale-95", "opacity-0");
+                modalContainer.classList.add("scale-100", "opacity-100");
+            }, 10);
+        }
+
+        let savedScrollPos = 0;
+
+        function closeModal() {
+            if (!modal) return;
+            modalContainer.classList.remove("scale-100", "opacity-100");
+            modalContainer.classList.add("scale-95", "opacity-0");
+            setTimeout(() => {
+                modal.classList.add("hidden");
+                document.body.style.overflow = "";
+                document.documentElement.style.overflow = "";
+            }, 200);
+        }
+
+        // Attach event listener to all cards and trigger buttons
+        cards.forEach(card => {
+            const triggers = card.querySelectorAll(".btn-open-modal-trigger");
+            triggers.forEach(trig => {
+                trig.addEventListener("click", (e) => {
+                    e.stopPropagation();
+                    openModal(card);
+                });
+            });
+        });
+
+        if (modalCloseBtn) modalCloseBtn.addEventListener("click", closeModal);
+        if (modalFooterCloseBtn) modalFooterCloseBtn.addEventListener("click", closeModal);
+        if (modal) {
+            modal.addEventListener("click", (e) => {
+                if (e.target === modal) closeModal();
+            });
+        }
+        document.addEventListener("keydown", (e) => {
+            if (e.key === "Escape" && modal && !modal.classList.contains("hidden")) {
+                closeModal();
+            }
+        });
 
         let activePriority = "All";
         let activeStatus = "active"; // "active", "needs_review", or "spam"

@@ -224,124 +224,182 @@ class Database:
 # ===========================================================================
 # AI ENGINE  — keyword-weighted classifier (offline, no cloud calls)
 # ===========================================================================
+# ===========================================================================
+# AI ENGINE  — Gemini Cloud Classifier
+# ===========================================================================
 class AIEngine:
     """
-    Lightweight keyword-weighted issue classifier.
+    Issue classifier using Google Gemini 1.5 Flash API for text analysis.
     """
 
-    ISSUE_KEYWORDS = {
-        "Road Damage": [
-            "pothole", "road", "crack", "broken", "tar", "asphalt",
-            "highway", "street", "pavement", "damaged road", "potholes",
-        ],
-        "Water Leakage": [
-            "water", "pipe", "leak", "leakage", "burst", "pipeline",
-            "flood", "overflow", "drain", "sewage", "drainage",
-        ],
-        "Garbage": [
-            "garbage", "waste", "trash", "litter", "dump", "filth",
-            "rubbish", "smell", "stench", "dirty", "unhygienic",
-        ],
-        "Electricity": [
-            "electric", "electricity", "wire", "pole", "light", "power",
-            "short circuit", "spark", "outage", "blackout", "shock",
-        ],
-        "Streetlight": [
-            "streetlight", "street light", "lamp", "dark", "darkness",
-            "lighting", "bulb", "no light",
-        ],
-        "Flood": [
-            "flood", "waterlogging", "stagnant water", "inundated",
-            "submerged", "rain", "waterlogged", "puddle",
-        ],
-        "Fire Emergency": [
-            "fire", "burning", "smoke", "flame", "blaze", "arson",
-        ],
-        "Tree Fall": [
-            "tree", "fallen", "branch", "obstruction", "blocked", "uprooted",
-        ],
-    }
-
-    PRIORITY_MAP = {
-        "Fire Emergency": "Critical",
-        "Electricity": "Critical",
-        "Flood": "High",
-        "Water Leakage": "High",
-        "Road Damage": "Medium",
-        "Tree Fall": "Medium",
-        "Streetlight": "Low",
-        "Garbage": "Low",
-    }
-
-    DEPARTMENT_MAP = {
-        "Road Damage": "Public Works Department (PWD)",
-        "Water Leakage": "Water Supply & Sewerage Board",
-        "Garbage": "Municipal Solid Waste Management",
-        "Electricity": "State Electricity Distribution Company",
-        "Streetlight": "Urban Local Body — Street Lighting",
-        "Flood": "Drainage & Flood Control Board",
-        "Fire Emergency": "Fire & Emergency Services",
-        "Tree Fall": "Horticulture / Forest Department",
-    }
-
-    RISK_MAP = {
-        "Critical": 90,
-        "High": 70,
-        "Medium": 45,
-        "Low": 20,
-    }
-
-    def _score(self, text: str) -> dict:
-        text_lower = text.lower()
-        scores = {}
-        for issue, keywords in self.ISSUE_KEYWORDS.items():
-            score = sum(
-                (1 + text_lower.count(kw)) * (1 + len(kw.split()))
-                for kw in keywords
-                if kw in text_lower
-            )
-            scores[issue] = score
-        return scores
-
     def analyze(self, description: str) -> dict:
-        scores = self._score(description)
-        best_issue = max(scores, key=scores.get)
-        best_score = scores[best_issue]
+        import os
+        import json
+        import requests
+        from django.conf import settings
 
-        # Confidence based on score magnitude
-        if best_score >= 10:
-            confidence = "High"
-        elif best_score >= 4:
-            confidence = "Medium"
-        elif best_score >= 1:
-            confidence = "Low"
+        api_key = getattr(settings, "GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")
+        if not api_key:
+            raise ValueError(
+                "Google Gemini API Key is not configured on the server. "
+                "Please set the GEMINI_API_KEY environment variable to enable AI classification."
+            )
+
+        try:
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={api_key}"
+            headers = {"Content-Type": "application/json"}
+
+            prompt = (
+                f"Analyze the following civic issue description:\n\"{description}\"\n\n"
+                "Determine the issue category, which must be exactly one of: "
+                "'Road Damage', 'Water Leakage', 'Garbage', 'Electricity', 'Streetlight', 'Flood', 'Fire Emergency', 'Tree Fall', 'Spam', or 'General Civic Issue'.\n\n"
+                "Return a JSON object conforming exactly to this schema:\n"
+                "{\n"
+                "  \"Issue\": \"string\",\n"
+                "  \"Priority\": \"Critical\" | \"High\" | \"Medium\" | \"Low\",\n"
+                "  \"Department\": \"string (concerned authority name)\",\n"
+                "  \"Confidence\": \"string (percentage, e.g., 92%)\",\n"
+                "  \"Risk Score\": integer (0 to 100),\n"
+                "  \"Reason\": \"string (1-sentence reason for classification)\",\n"
+                "  \"Suggested Action\": \"string (action for authority)\",\n"
+                "  \"Advice\": \"string (optional advice for citizen)\"\n"
+                "}"
+            )
+
+            payload = {
+                "contents": [{"parts": [{"text": prompt}]}],
+                "generationConfig": {"responseMimeType": "application/json"}
+            }
+
+            response = requests.post(url, json=payload, headers=headers, timeout=25)
+            if response.status_code != 200:
+                err_text = response.text
+                try:
+                    err_json = response.json()
+                    err_text = err_json.get("error", {}).get("message", response.text)
+                except Exception:
+                    pass
+                raise RuntimeError(f"Gemini API error ({response.status_code}): {err_text}")
+
+            resp_json = response.json()
+            candidates = resp_json.get("candidates", [])
+            if not candidates:
+                raise RuntimeError("Gemini API returned an empty response.")
+
+            text_content = candidates[0]["content"]["parts"][0]["text"]
+            result = json.loads(text_content)
+
+            return {
+                "Issue": result.get("Issue", "General Civic Issue"),
+                "Priority": result.get("Priority", "Medium"),
+                "Department": result.get("Department", "Municipal Corporation"),
+                "Confidence": str(result.get("Confidence", "85%")),
+                "Risk Score": int(str(result.get("Risk Score", 50)).split("/")[0].replace(".", "") if str(result.get("Risk Score", 50)).replace(".", "").isdigit() else 50),
+                "Reason": result.get("Reason", "Analyzed using Gemini AI."),
+                "Suggested Action": result.get("Suggested Action", "Forward to municipal authority."),
+                "Advice": result.get("Advice", "Keep your report ID safe for status tracking."),
+            }
+        except Exception as exc:
+            logger.warning("Gemini text analysis failed: %s", exc)
+            raise
+
+    def _fallback_keyword_triage(self, description: str) -> dict:
+        desc_lower = (description or "").lower()
+        if any(w in desc_lower for w in ["water", "pipe", "leak", "sewer", "drain", "burst", "tap", "flood"]):
+            return {
+                "Issue": "Water Leakage",
+                "Priority": "High",
+                "Department": "Water Supply & Sewerage Board",
+                "Confidence": "78% (Rule Triage)",
+                "Risk Score": 72,
+                "Reason": "Detected water/leakage keywords in issue description.",
+                "Suggested Action": "Inspect water supply pipeline and fix leak immediately.",
+                "Advice": "Avoid walking near flooded water pipes.",
+            }
+        elif any(w in desc_lower for w in ["road", "pothole", "tar", "asphalt", "crack", "bridge", "street"]):
+            return {
+                "Issue": "Road Damage",
+                "Priority": "Medium",
+                "Department": "Public Works Department (PWD)",
+                "Confidence": "80% (Rule Triage)",
+                "Risk Score": 60,
+                "Reason": "Detected road/pothole keywords in issue description.",
+                "Suggested Action": "Dispatch PWD road repair crew to patch surface.",
+                "Advice": "Drive carefully around damaged road section.",
+            }
+        elif any(w in desc_lower for w in ["garbage", "trash", "waste", "dump", "smell", "clean"]):
+            return {
+                "Issue": "Garbage",
+                "Priority": "Medium",
+                "Department": "Municipal Solid Waste Management",
+                "Confidence": "82% (Rule Triage)",
+                "Risk Score": 45,
+                "Reason": "Detected waste/garbage keywords in issue description.",
+                "Suggested Action": "Schedule solid waste collection truck.",
+                "Advice": "Keep waste bagged until municipal pickup.",
+            }
+        elif any(w in desc_lower for w in ["wire", "electric", "spark", "transformer", "shock", "power"]):
+            return {
+                "Issue": "Electricity",
+                "Priority": "Critical",
+                "Department": "State Electricity Distribution Company",
+                "Confidence": "85% (Rule Triage)",
+                "Risk Score": 90,
+                "Reason": "Detected electrical hazard keywords in issue description.",
+                "Suggested Action": "Isolate high voltage line and repair circuit.",
+                "Advice": "Do not touch open electrical wires or transformers.",
+            }
+        elif any(w in desc_lower for w in ["dark", "light", "lamp", "pole", "bulb"]):
+            return {
+                "Issue": "Streetlight",
+                "Priority": "Low",
+                "Department": "Urban Local Body — Street Lighting",
+                "Confidence": "75% (Rule Triage)",
+                "Risk Score": 35,
+                "Reason": "Detected streetlight keywords in issue description.",
+                "Suggested Action": "Replace damaged bulb/fixture.",
+                "Advice": "Exercise caution in poorly lit areas.",
+            }
+        elif any(w in desc_lower for w in ["fire", "smoke", "flame", "burn"]):
+            return {
+                "Issue": "Fire Emergency",
+                "Priority": "Critical",
+                "Department": "Fire & Emergency Services",
+                "Confidence": "90% (Rule Triage)",
+                "Risk Score": 95,
+                "Reason": "Detected fire hazard keywords in issue description.",
+                "Suggested Action": "Deploy fire engine and emergency response unit.",
+                "Advice": "Evacuate area immediately and dial emergency hotline 101.",
+            }
+        elif any(w in desc_lower for w in ["tree", "branch", "fallen"]):
+            return {
+                "Issue": "Tree Fall",
+                "Priority": "Medium",
+                "Department": "Horticulture / Forest Department",
+                "Confidence": "80% (Rule Triage)",
+                "Risk Score": 55,
+                "Reason": "Detected tree fall keywords in issue description.",
+                "Suggested Action": "Clear fallen tree and restore road passage.",
+                "Advice": "Avoid standing under unstable trees.",
+            }
         else:
-            best_issue = "General Civic Issue"
-            confidence = "Low"
-
-        priority = self.PRIORITY_MAP.get(best_issue, "Medium")
-        department = self.DEPARTMENT_MAP.get(best_issue, "Municipal Corporation")
-        base_risk = self.RISK_MAP.get(priority, 45)
-        # Slightly vary risk by description length (longer = more detailed = more certain)
-        risk_score = min(100, base_risk + min(10, len(description) // 50))
-
-        return {
-            "Issue": best_issue,
-            "Priority": priority,
-            "Department": department,
-            "Confidence": confidence,
-            "Risk Score": risk_score,
-            "Reason": f"Keywords strongly indicate a {best_issue.lower()} situation requiring {priority.lower()} priority attention.",
-            "Suggested Action": f"File a formal complaint with {department}. Reference this report hash for follow-up.",
-            "Advice": "Document the issue with photos. Share the report ID with local ward councillor for faster resolution.",
-        }
+            return {
+                "Issue": "General Civic Issue",
+                "Priority": "Medium",
+                "Department": "Municipal Corporation",
+                "Confidence": "70% (Rule Triage)",
+                "Risk Score": 50,
+                "Reason": "Automated triage classification. You can verify or change department below.",
+                "Suggested Action": "Route report to municipal authority for verification.",
+                "Advice": "Provide additional photos or location details if possible.",
+            }
 
 
 # ===========================================================================
-# PHOTO ANALYZER (optional image-to-description support)
+# PHOTO ANALYZER (Gemini Cloud Vision Classifier)
 # ===========================================================================
 class PhotoAnalyzer:
-    """Analyzes a civic issue photo and returns structured issue classification."""
+    """Analyzes a civic issue photo using Google Gemini Flash Vision API."""
 
     CATEGORY_META = {
         "Water Leakage": ("High", "Water Supply & Sewerage Board", 72),
@@ -355,303 +413,140 @@ class PhotoAnalyzer:
         "General Civic Issue": ("Low", "Municipal Corporation", 30),
     }
 
-    def _decode_data_url(self, photo_data: str) -> bytes:
-        if not photo_data:
-            raise ValueError("Missing photo data")
-        if "," in photo_data:
-            _, b64 = photo_data.split(",", 1)
-        else:
-            b64 = photo_data
-        try:
-            return base64.b64decode(b64)
-        except Exception as exc:
-            raise ValueError("Invalid base64 image data") from exc
-
-    def _build_result(self, issue: str, confidence: str, reason: str) -> dict:
-        priority, department, risk = self.CATEGORY_META.get(
-            issue,
-            self.CATEGORY_META["General Civic Issue"],
-        )
-        return {
-            "Issue": issue,
-            "Priority": priority,
-            "Department": department,
-            "Confidence": confidence,
-            "Risk Score": risk,
-            "Reason": reason,
-            "Suggested Action": f"Assign to {department} for field verification and resolution.",
-            "Advice": "You can edit the AI-generated description before submission for better accuracy.",
-        }
-
     def _generate_description(self, result: dict) -> str:
         issue = result.get("Issue", "General Civic Issue")
         dept = result.get("Department", "Municipal Corporation")
-        priority = result.get("Priority", "Medium")
-        
+
         detail_map = {
-            "Water Leakage": (
-                "An active water leakage issue has been detected from the uploaded photographic evidence. "
-                "There appears to be a pipeline burst or leakage causing continuous water loss and potential damage to the surrounding road surface. "
-                "Requesting the Water Supply & Sewerage Board to dispatch field engineers for immediate line inspection, isolation, and repair to conserve water and prevent road damage."
-            ),
-            "Road Damage": (
-                "Significant road damage / pothole has been detected from the uploaded photographic evidence. "
-                "This defect presents an active safety hazard for commuters, especially two-wheelers, and is likely to cause vehicle damage or traffic disruption. "
-                "Requesting the Public Works Department (PWD) road maintenance team to carry out leveling and resurfacing work at the earliest."
-            ),
-            "Garbage": (
-                "An accumulation of unmanaged solid waste / garbage dump has been detected from the uploaded photographic evidence. "
-                "This creates unsanitary conditions, potential health hazards, and public inconvenience in the locality. "
-                "Requesting the Municipal Solid Waste Management department to dispatch a clearing vehicle to clean the site and restore sanitation."
-            ),
-            "Electricity": (
-                "A potential electrical hazard (such as damaged wiring, sparks, or transformer issues) has been detected from the uploaded photographic evidence. "
-                "This poses a critical public safety threat. "
-                "Requesting the State Electricity Distribution Company to dispatch emergency line technicians immediately for safety isolation and rectification."
-            ),
-            "Flood": (
-                "Severe water-logging / flooding has been detected from the uploaded photographic evidence. "
-                "This restricts pedestrian and vehicular movement and risks entering low-lying buildings. "
-                "Requesting the Drainage & Flood Control Board to deploy dewatering pumps and clear drainage blocks in the affected area."
-            ),
-            "Fire Emergency": (
-                "An active fire emergency or hazardous heat signature has been detected from the uploaded photographic evidence. "
-                "This requires immediate emergency dispatch. "
-                "Requesting Fire & Emergency Services to deploy firefighting personnel and apparatus to the location."
-            ),
-            "Tree Fall": (
-                "A fallen tree or major branch blocking the road/pathway has been detected from the uploaded photographic evidence. "
-                "This blocks traffic and poses a risk to overhead cables. "
-                "Requesting the Horticulture / Forest Department to clear the obstruction and restore access."
-            ),
-            "Streetlight": (
-                "A non-functioning streetlight or lighting infrastructure defect has been detected from the uploaded photographic evidence. "
-                "This results in dark patches on public streets, reducing security and commuter safety. "
-                "Requesting the Urban Local Body Street Lighting division to replace the faulty bulbs or repair the wiring."
-            ),
+            "Water Leakage": "Photographic evidence indicates a water leakage issue. Requesting Water Supply & Sewerage Board line inspection.",
+            "Road Damage": "Photographic evidence indicates road damage / pothole defect. Requesting PWD road maintenance team dispatch.",
+            "Garbage": "Photographic evidence indicates solid waste / garbage accumulation. Requesting Municipal Solid Waste clearing.",
+            "Electricity": "Photographic evidence indicates electrical infrastructure hazard. Requesting Electricity Distribution technician.",
+            "Flood": "Photographic evidence indicates severe water-logging / flooding. Requesting Drainage & Flood Control Board action.",
+            "Fire Emergency": "Photographic evidence indicates fire emergency / smoke. Requesting Fire & Emergency Services dispatch.",
+            "Tree Fall": "Photographic evidence indicates fallen tree / branch obstruction. Requesting Horticulture / Forest Department.",
+            "Streetlight": "Photographic evidence indicates streetlight defect. Requesting Urban Local Body Street Lighting repair.",
         }
-        
-        details = detail_map.get(
-            issue,
-            "A civic issue requiring inspection and resolution has been detected from the uploaded photographic evidence. "
-            "Please assign a field technician to investigate the site and take appropriate corrective action."
-        )
-        
-        return details
+        return detail_map.get(issue, f"Photo evidence attached for civic issue inspection by {dept}.")
 
     def analyze_photo_data(self, photo_data: str, photo_name: str = "") -> dict:
-        # Check if Google Gemini API Key is configured
         import os
+        import json
+        import requests
         from django.conf import settings
+
         api_key = getattr(settings, "GEMINI_API_KEY", "") or os.environ.get("GEMINI_API_KEY", "")
-        if api_key:
-            try:
-                import json
-                import requests
-                # Decode image and strip base64 prefix
-                if "," in photo_data:
-                    mime, b64 = photo_data.split(",", 1)
-                    mime_type = mime.split(";")[0].split(":")[1]
-                else:
-                    b64 = photo_data
-                    mime_type = "image/jpeg"
-                
-                url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={api_key}"
-                headers = {"Content-Type": "application/json"}
-                
-                prompt = (
-                    "Analyze the civic issue shown in this photo. "
-                    "Determine the issue category, which must be exactly one of: "
-                    "'Road Damage', 'Water Leakage', 'Garbage', 'Electricity', 'Streetlight', 'Flood', 'Fire Emergency', 'Tree Fall', 'Spam', or 'General Civic Issue'.\n\n"
-                    "If the image shows a streetlight, street lamp, lighting pole, or dark unlit street light fixture, classify it strictly as 'Streetlight'.\n\n"
-                    "If the image does not represent any real, public civic issue (e.g. it is a selfie, advertisement, meme, screenshot of unrelated text, arbitrary household or indoor object, animal, food, or non-civic scene), classify it as 'Spam' under the 'Issue' category. If the issue is categorized as 'Spam', set the 'Priority' to 'Low', the 'Risk Score' to 0, and the 'Auto Description' should indicate that the image is flagged as invalid or irrelevant spam.\n\n"
-                    "Return a JSON object conforming exactly to this schema:\n"
-                    "{\n"
-                    "  \"Issue\": \"string\",\n"
-                    "  \"Priority\": \"Critical\" | \"High\" | \"Medium\" | \"Low\",\n"
-                    "  \"Department\": \"string (concerned authority name)\",\n"
-                    "  \"Confidence\": \"string (percentage, e.g., 92%)\",\n"
-                    "  \"Risk Score\": integer (0 to 100),\n"
-                    "  \"Reason\": \"string (1-sentence reason for classification)\",\n"
-                    "  \"Suggested Action\": \"string (action for authority)\",\n"
-                    "  \"Advice\": \"string (optional advice for citizen)\",\n"
-                    "  \"Auto Description\": \"string (detailed description describing the issue and request for dispatch)\"\n"
-                    "}"
-                )
-                
-                payload = {
-                    "contents": [{
-                        "parts": [
-                            {"text": prompt},
-                            {
-                                "inlineData": {
-                                    "mimeType": mime_type,
-                                    "data": b64
-                                }
-                            }
-                        ]
-                    }],
-                    "generationConfig": {
-                        "responseMimeType": "application/json"
-                    }
-                }
-                
-                response = requests.post(url, json=payload, headers=headers, timeout=12)
-                if response.status_code == 200:
-                    resp_json = response.json()
-                    text_content = resp_json["candidates"][0]["content"]["parts"][0]["text"]
-                    result = json.loads(text_content)
-                    
-                    normalized = {
-                        "Issue": result.get("Issue", "General Civic Issue"),
-                        "Priority": result.get("Priority", "Medium"),
-                        "Department": result.get("Department", "Municipal Corporation"),
-                        "Confidence": result.get("Confidence", "60%"),
-                        "Risk Score": int(result.get("Risk Score", 50)),
-                        "Reason": result.get("Reason", "Detected from uploaded image."),
-                        "Suggested Action": result.get("Suggested Action", "Field inspection recommended."),
-                        "Advice": result.get("Advice", "Please provide additional details if possible."),
-                        "Auto Description": result.get("Auto Description", "")
-                    }
-                    if not normalized["Auto Description"]:
-                        normalized["Auto Description"] = self._generate_description(normalized)
-                    return normalized
-                else:
-                    logger.warning("Gemini API call failed with status %s: %s", response.status_code, response.text)
-            except Exception as exc:
-                logger.warning("Failed to analyze image using Gemini API, falling back: %s", exc)
+        if not api_key:
+            raise ValueError(
+                "Google Gemini API Key is not configured on the server. "
+                "Please set the GEMINI_API_KEY environment variable to enable AI photo analysis."
+            )
 
         try:
-            from PIL import Image, ImageStat
+            import io
+            import base64
+            from PIL import Image
 
-            image_bytes = self._decode_data_url(photo_data)
-            image = Image.open(io.BytesIO(image_bytes)).convert("RGB")
-            small = image.resize((128, 128))
-
-            pixels = list(small.getdata())
-            stat = ImageStat.Stat(image)
-            r_mean, g_mean, b_mean = stat.mean
-
-            hue_buckets = {
-                "red_orange": 0,
-                "yellow": 0,
-                "green": 0,
-                "blue_cyan": 0,
-                "gray": 0,
-            }
-            high_sat_count = 0
-
-            for r, g, b in pixels:
-                h, s, _ = colorsys.rgb_to_hsv(r / 255, g / 255, b / 255)
-                if s < 0.12:
-                    hue_buckets["gray"] += 1
-                    continue
-                if s > 0.35:
-                    high_sat_count += 1
-
-                hue_deg = h * 360
-                if hue_deg < 30 or hue_deg >= 330:
-                    hue_buckets["red_orange"] += 1
-                elif hue_deg < 75:
-                    hue_buckets["yellow"] += 1
-                elif hue_deg < 165:
-                    hue_buckets["green"] += 1
-                elif hue_deg < 270:
-                    hue_buckets["blue_cyan"] += 1
-                else:
-                    hue_buckets["red_orange"] += 1
-
-            total = max(1, sum(hue_buckets.values()))
-            hues = {k: v / total for k, v in hue_buckets.items()}
-            saturation = high_sat_count / max(1, len(pixels))
-            brightness = ImageStat.Stat(image.convert("L")).mean[0]
-
-            name_lower = (photo_name or "").lower()
-
-            scores = {
-                "Streetlight": 0.0,
-                "Water Leakage": 0.0,
-                "Road Damage": 0.0,
-                "Garbage": 0.0,
-                "Electricity": 0.0,
-                "Fire Emergency": 0.0,
-                "Flood": 0.0,
-                "Tree Fall": 0.0,
-            }
-
-            # --- Keyword Hints from Filename ---
-            if any(k in name_lower for k in ["light", "lamp", "pole", "street", "night", "dark", "bulb", "no light"]):
-                scores["Streetlight"] += 3.5
-            if any(k in name_lower for k in ["water", "leak", "pipe", "burst"]):
-                scores["Water Leakage"] += 3.5
-            if any(k in name_lower for k in ["pothole", "road", "crack", "asphalt", "tarmac"]):
-                scores["Road Damage"] += 3.5
-            if any(k in name_lower for k in ["garbage", "trash", "waste", "dump", "litter"]):
-                scores["Garbage"] += 3.5
-            if any(k in name_lower for k in ["fire", "flame", "smoke"]):
-                scores["Fire Emergency"] += 3.5
-
-            # --- Visual Pattern Heuristics ---
-            is_dark_night = brightness < 110
-            is_bright_fire = (brightness > 135 and r_mean > 145 and saturation > 0.25)
-
-            # Streetlight: Dark night scene + gray structural pole / fixture
-            if is_dark_night:
-                scores["Streetlight"] += 2.8 + (1.2 if brightness < 70 else 0.5)
-            if hues["gray"] > 0.2 and is_dark_night:
-                scores["Streetlight"] += 1.2
-
-            # Water Leakage: Require cyan/blue water component
-            water_leak_val = hues["blue_cyan"] * 3.0 + (1.5 if b_mean > r_mean + 12 else 0.0)
-            if b_mean < r_mean and hues["blue_cyan"] < 0.12:
-                water_leak_val = 0.0
-            scores["Water Leakage"] += water_leak_val
-
-            # Flood
-            scores["Flood"] += hues["blue_cyan"] * 1.6 + (1.2 if (b_mean > r_mean + 15 and brightness > 120) else 0.0)
-
-            # Road Damage: Daylight asphalt (brightness >= 110)
-            if brightness >= 110:
-                scores["Road Damage"] += hues["gray"] * 2.2 + (1.0 - saturation) * 0.8
-
-            # Garbage
-            scores["Garbage"] += hues["green"] * 1.2 + hues["yellow"] * 0.8
-
-            # Electricity
-            scores["Electricity"] += hues["yellow"] * 1.4 + (1.0 if (brightness < 100 and saturation > 0.6) else 0.0)
-
-            # Tree Fall
-            scores["Tree Fall"] += hues["green"] * 1.5 + (hues["gray"] * 0.4 if brightness >= 110 else 0.0)
-
-            # Fire Emergency
-            if is_bright_fire:
-                scores["Fire Emergency"] += hues["red_orange"] * 2.3 + saturation * 1.2
-
-            issue = max(scores, key=scores.get)
-            confidence_val = scores[issue]
-            if confidence_val >= 2.0:
-                confidence = "82%"
-            elif confidence_val >= 1.2:
-                confidence = "72%"
-            elif confidence_val >= 0.6:
-                confidence = "62%"
+            if "," in photo_data:
+                mime, b64 = photo_data.split(",", 1)
+                mime_type = mime.split(";")[0].split(":")[1].lower()
             else:
-                issue = "General Civic Issue"
-                confidence = "52%"
+                b64 = photo_data
+                mime_type = "image/jpeg"
 
-            reason = f"Visual color and scene pattern analysis indicates {issue.lower()} characteristics."
-            result = self._build_result(issue, confidence, reason)
-            result["Auto Description"] = self._generate_description(result)
-            return result
-        except Exception as exc:
-            logger.warning("Photo analysis failed: %s", exc)
-            fallback = self._build_result(
-                "General Civic Issue",
-                "50%",
-                "AI could not confidently classify this image; manual review is recommended.",
+            # Gemini API supported inline mime types: image/jpeg, image/png, image/webp
+            supported_mimes = {"image/jpeg", "image/png", "image/webp"}
+            if mime_type not in supported_mimes:
+                try:
+                    img_bytes = base64.b64decode(b64)
+                    img = Image.open(io.BytesIO(img_bytes))
+                    if img.mode in ("RGBA", "P"):
+                        img = img.convert("RGB")
+                    buffer = io.BytesIO()
+                    img.save(buffer, format="JPEG", quality=85)
+                    b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                    mime_type = "image/jpeg"
+                except Exception as conv_err:
+                    logger.warning("Could not convert %s image to JPEG: %s", mime_type, conv_err)
+                    mime_type = "image/jpeg"
+
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key={api_key}"
+            headers = {"Content-Type": "application/json"}
+
+            prompt = (
+                "Analyze the civic issue shown in this photo carefully. "
+                "Determine the issue category, which must be exactly one of: "
+                "'Road Damage', 'Water Leakage', 'Garbage', 'Electricity', 'Streetlight', 'Flood', 'Fire Emergency', 'Tree Fall', 'Spam', or 'General Civic Issue'.\n\n"
+                "Instructions:\n"
+                "1. If the image shows no real public civic issue (e.g. selfie, meme, indoor object, animal, food, generic landmark, clear sky without issue), classify it strictly as 'Spam' or 'General Civic Issue' with low confidence.\n"
+                "2. In 'Auto Description', describe ONLY what is explicitly visible in the photo. Do not assume or hallucinate unverified details.\n\n"
+                "Return a JSON object conforming exactly to this schema:\n"
+                "{\n"
+                "  \"Issue\": \"string\",\n"
+                "  \"Priority\": \"Critical\" | \"High\" | \"Medium\" | \"Low\",\n"
+                "  \"Department\": \"string (concerned authority name)\",\n"
+                "  \"Confidence\": \"string (percentage, e.g., 92%)\",\n"
+                "  \"Risk Score\": integer (0 to 100),\n"
+                "  \"Reason\": \"string (1-sentence reason for classification)\",\n"
+                "  \"Suggested Action\": \"string (action for authority)\",\n"
+                "  \"Advice\": \"string (optional advice for citizen)\",\n"
+                "  \"Auto Description\": \"string (factual description of what is visible in photo)\"\n"
+                "}"
             )
-            fallback["Auto Description"] = self._generate_description(fallback)
-            return fallback
+
+            payload = {
+                "contents": [{
+                    "parts": [
+                        {"text": prompt},
+                        {
+                            "inlineData": {
+                                "mimeType": mime_type,
+                                "data": b64
+                            }
+                        }
+                    ]
+                }],
+                "generationConfig": {
+                    "responseMimeType": "application/json"
+                }
+            }
+
+            response = requests.post(url, json=payload, headers=headers, timeout=25)
+            if response.status_code != 200:
+                err_text = response.text
+                try:
+                    err_json = response.json()
+                    err_text = err_json.get("error", {}).get("message", response.text)
+                except Exception:
+                    pass
+                raise RuntimeError(f"Gemini API error ({response.status_code}): {err_text}")
+
+            resp_json = response.json()
+            candidates = resp_json.get("candidates", [])
+            if not candidates:
+                raise RuntimeError("Gemini API returned an empty response.")
+
+            text_content = candidates[0]["content"]["parts"][0]["text"]
+            result = json.loads(text_content)
+
+            normalized = {
+                "Issue": result.get("Issue", "General Civic Issue"),
+                "Priority": result.get("Priority", "Medium"),
+                "Department": result.get("Department", "Municipal Corporation"),
+                "Confidence": str(result.get("Confidence", "85%")),
+                "Risk Score": int(str(result.get("Risk Score", 50)).split("/")[0].replace(".", "") if str(result.get("Risk Score", 50)).replace(".", "").isdigit() else 50),
+                "Reason": result.get("Reason", "Analyzed using Gemini AI Vision."),
+                "Suggested Action": result.get("Suggested Action", "Field inspection recommended."),
+                "Advice": result.get("Advice", "Please verify and edit description if needed."),
+                "Auto Description": result.get("Auto Description", "")
+            }
+            if not normalized["Auto Description"]:
+                normalized["Auto Description"] = self._generate_description(normalized)
+            return normalized
+
+        except Exception as exc:
+            logger.warning("Gemini photo analysis failed: %s", exc)
+            raise
 
 
 # ===========================================================================

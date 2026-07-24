@@ -63,8 +63,8 @@
       <h3 class="text-sm font-bold text-white">Issue Distribution</h3>
       <span class="text-xs text-admin-muted">Active reports only</span>
     </div>
-    <div class="p-5">
-      <canvas id="issueChart" height="200"></canvas>
+    <div class="p-4 h-56 flex items-center justify-center">
+      <canvas id="issueChart" class="max-h-48 w-full"></canvas>
     </div>
   </div>
 
@@ -73,10 +73,10 @@
     <div class="px-5 py-4 border-b border-admin-border">
       <h3 class="text-sm font-bold text-white">Priority Breakdown</h3>
     </div>
-    <div class="p-5">
-      <canvas id="priorityChart" height="200"></canvas>
+    <div class="p-3 h-44 flex items-center justify-center">
+      <canvas id="priorityChart" class="max-h-40"></canvas>
     </div>
-    <div class="px-5 pb-4 space-y-2">
+    <div class="px-5 pb-4 space-y-1.5">
       {% for label, count in stats.priority_counts.items %}
       <div class="flex items-center justify-between text-xs">
         <span class="text-admin-muted">{{ label }}</span>
@@ -113,8 +113,8 @@
     <div class="px-5 py-4 border-b border-admin-border">
       <h3 class="text-sm font-bold text-white">Department Load</h3>
     </div>
-    <div class="p-5">
-      <canvas id="deptChart" height="220"></canvas>
+    <div class="p-4 h-56 flex items-center justify-center">
+      <canvas id="deptChart" class="max-h-48 w-full"></canvas>
     </div>
   </div>
 
@@ -123,8 +123,8 @@
     <div class="px-5 py-4 border-b border-admin-border">
       <h3 class="text-sm font-bold text-white">7-Day Submission Volume</h3>
     </div>
-    <div class="p-5">
-      <canvas id="recentChart" height="220"></canvas>
+    <div class="p-4 h-56 flex items-center justify-center">
+      <canvas id="recentChart" class="max-h-48 w-full"></canvas>
     </div>
   </div>
 </div>
@@ -230,9 +230,9 @@ new Chart(document.getElementById('issueChart'), {
   type: 'bar',
   data: {
     labels: issueData.map(d => d.label),
-    datasets: [{ data: issueData.map(d => d.count), backgroundColor: PALETTE, borderRadius: 6, borderSkipped: false }]
+    datasets: [{ data: issueData.map(d => d.count), backgroundColor: PALETTE, borderRadius: 6, borderSkipped: false, maxBarThickness: 28 }]
   },
-  options: { responsive:true, plugins:{ legend:{display:false} }, scales:{
+  options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:false} }, scales:{
     x:{ ticks:{color:'#64748B', font:{size:10}}, grid:{color:'#1E2A42'} },
     y:{ ticks:{color:'#64748B', font:{size:10}}, grid:{color:'#1E2A42'} }
   }}
@@ -246,7 +246,7 @@ new Chart(document.getElementById('priorityChart'), {
     labels: Object.keys(pCounts),
     datasets: [{ data: Object.values(pCounts), backgroundColor:['#EF4444','#F97316','#F59E0B','#10B981'], borderWidth:0, hoverOffset:6 }]
   },
-  options: { cutout:'72%', responsive:true, plugins:{ legend:{display:true, position:'bottom', labels:{color:'#94A3B8',font:{size:10},boxWidth:10,padding:12}} } }
+  options: { cutout:'70%', responsive:true, maintainAspectRatio:false, plugins:{ legend:{display:true, position:'bottom', labels:{color:'#94A3B8',font:{size:10},boxWidth:10,padding:6}} } }
 });
 
 // Department Load (Horizontal Bar)
@@ -254,9 +254,9 @@ new Chart(document.getElementById('deptChart'), {
   type: 'bar',
   data: {
     labels: deptData.map(d => d.label.length > 22 ? d.label.substring(0,22)+'…' : d.label),
-    datasets: [{ data: deptData.map(d => d.count), backgroundColor: '#2563EB88', borderRadius:4, borderSkipped:false }]
+    datasets: [{ data: deptData.map(d => d.count), backgroundColor: '#2563EB88', borderRadius:4, borderSkipped:false, maxBarThickness: 22 }]
   },
-  options: { indexAxis:'y', responsive:true, plugins:{legend:{display:false}}, scales:{
+  options: { indexAxis:'y', responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{
     x:{ ticks:{color:'#64748B',font:{size:9}}, grid:{color:'#1E2A42'} },
     y:{ ticks:{color:'#94A3B8',font:{size:9}}, grid:{display:false} }
   }}
@@ -271,7 +271,7 @@ new Chart(document.getElementById('recentChart'), {
       borderColor:'#06B6D4', backgroundColor:'rgba(6,182,212,0.12)',
       fill:true, tension:0.4, pointBackgroundColor:'#06B6D4', pointRadius:4 }]
   },
-  options: { responsive:true, plugins:{legend:{display:false}}, scales:{
+  options: { responsive:true, maintainAspectRatio:false, plugins:{legend:{display:false}}, scales:{
     x:{ ticks:{color:'#64748B',font:{size:9}}, grid:{color:'#1E2A42'} },
     y:{ ticks:{color:'#64748B',font:{size:9}}, grid:{color:'#1E2A42'} }
   }}

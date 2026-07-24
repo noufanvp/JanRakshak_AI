@@ -326,9 +326,10 @@ const ReportForm = (() => {
             attributionControl: true
           }).setView([latitude, longitude], 15);
 
-          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          L.tileLayer("https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png", {
             maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            subdomains: "abcd",
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
           }).addTo(mapInstance);
 
           mapMarker = L.marker([latitude, longitude], {
@@ -513,7 +514,7 @@ const ReportForm = (() => {
     if (aiScanOverlay) {
       aiScanOverlay.classList.remove("hidden");
     }
-    updateDescriptionStatus("Analyzing uploaded image with AI...", "info");
+    updateDescriptionStatus("Analyzing uploaded image with Gemini AI Vision...", "info");
     const scanStartTime = Date.now();
     try {
       const response = await fetch("/api/analyze-photo/", {
@@ -529,8 +530,20 @@ const ReportForm = (() => {
       });
 
       const data = await response.json();
-      if (!response.ok || data.error) {
-        throw new Error(data.error || "Image analysis failed");
+
+      // Quota / rate-limit error — backend returns success:false with ai_quota_error:true
+      if (data.ai_quota_error) {
+        photoAIAnalysis = null;
+        const retryHint = data.retry_in ? ` Please retry in ${data.retry_in}.` : "";
+        const errMsg = data.error ||
+          `AI photo analysis is temporarily unavailable — API quota limit reached.${retryHint}`;
+        updateDescriptionStatus(`⚠️ ${errMsg}`, "error");
+        JR.toast(errMsg, "warning");
+        return;
+      }
+
+      if (!response.ok || !data.success || data.error) {
+        throw new Error(data.error || "Gemini AI photo analysis failed. Please describe the issue manually.");
       }
 
       photoAIAnalysis = data.analysis || null;
@@ -542,13 +555,15 @@ const ReportForm = (() => {
       }
 
       if (photoAIAnalysis && photoAIAnalysis.Issue === "Spam") {
-        updateDescriptionStatus("Warning: AI detected this image as irrelevant spam/archive.", "error");
+        updateDescriptionStatus("Warning: Gemini AI flagged this image as non-civic/spam.", "error");
+        JR.toast("Gemini AI flagged this image as non-civic/spam.", "warning");
       } else {
-        updateDescriptionStatus("AI description generated from photo. You can edit it before submit.", "success");
+        updateDescriptionStatus("Gemini AI description generated from photo. You can edit it before submit.", "success");
       }
     } catch (err) {
       photoAIAnalysis = null;
-      updateDescriptionStatus(`Photo analysis failed: ${err.message}`, "error");
+      updateDescriptionStatus(`⚠️ ${err.message}`, "error");
+      JR.toast(err.message, "error");
     } finally {
       // Ensure scan beam VFX completes at least one full sweep pass (1.2s minimum)
       const elapsed = Date.now() - scanStartTime;
@@ -765,13 +780,42 @@ const ReportForm = (() => {
       }
     }
 
-    // Display modal with animation
+    // Save current scroll position before opening modal
+    savedReportScrollPos = window.scrollY || window.pageYOffset;
+
+    // Blur active element (submit button) so browser does not scroll back to focus target
+    if (document.activeElement && typeof document.activeElement.blur === "function") {
+      document.activeElement.blur();
+    }
+
+    // Ensure modal overlay is attached to root document body outside transformed elements
+    if (modalOverlay.parentElement !== document.body) {
+      document.body.appendChild(modalOverlay);
+    }
+
+    // Lock body & documentElement scrolling so background page does not scroll
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+
+    // Display modal overlay with animation
     modalOverlay.classList.remove("hidden");
+
+    // Reset inner scroll positions to top (0) so modal header is immediately visible
+    const modalMainContent = document.getElementById("modal-main-content");
+    if (modalMainContent) modalMainContent.scrollTop = 0;
+    if (modalBox) modalBox.scrollTop = 0;
+    modalOverlay.scrollTop = 0;
+
+    const closeBtn = document.getElementById("modal-close-btn");
+    if (closeBtn) closeBtn.focus();
+
     setTimeout(() => {
       modalBox.classList.remove("scale-95", "opacity-0");
       modalBox.classList.add("scale-100", "opacity-100");
     }, 10);
   }
+
+  let savedReportScrollPos = 0;
 
   function closeAIModal() {
     const modalOverlay = document.getElementById("ai-modal-overlay");
@@ -782,6 +826,8 @@ const ReportForm = (() => {
     modalBox.classList.add("scale-95", "opacity-0");
     setTimeout(() => {
       modalOverlay.classList.add("hidden");
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
     }, 200);
   }
 
@@ -981,11 +1027,14 @@ const ReportForm = (() => {
           await queueOfflineReport(payload);
           JR.toast("You're offline. Report queued for upload when reconnected.", "warning");
         } else {
-          JR.toast(`Analysis failed: ${err.message}`, "error");
+          // Show the real AI error — no guessing, no generic fallback message
+          JR.toast(err.message, "error");
         }
       } finally {
         submitBtn.disabled = false;
         submitBtn.innerHTML = originalText;
+        if (submitBtn && typeof submitBtn.blur === "function") submitBtn.blur();
+        if (document.activeElement && typeof document.activeElement.blur === "function") document.activeElement.blur();
         if (aiScanOverlay) {
           aiScanOverlay.classList.add("hidden");
         }

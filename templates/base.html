@@ -116,7 +116,7 @@
   {% block extra_head %}{% endblock %}
 </head>
 
-<body class="h-full bg-surface-bg antialiased">
+<body class="min-h-screen flex flex-col bg-surface-bg antialiased">
 
   {# Top progress loading bar for smooth page transitions #}
   <div id="top-loader" class="top-loader-bar" aria-hidden="true"></div>
@@ -264,7 +264,7 @@
   {# ===================================================================== #}
   {# MAIN CONTENT #}
   {# ===================================================================== #}
-  <main id="main-content" role="main" aria-label="Main content" tabindex="-1">
+  <main id="main-content" class="flex-grow" role="main" aria-label="Main content" tabindex="-1">
     {% block content %}{% endblock %}
   </main>
 

@@ -6,6 +6,7 @@ All AI, database, and security logic is now Django-native (no external files nee
 
 import json
 import logging
+import re
 from django.shortcuts import render
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -100,7 +101,7 @@ def report_issue(request):
 @csrf_exempt
 @require_http_methods(["POST"])
 def analyze_photo(request):
-    """AJAX endpoint: analyze uploaded image and generate editable description."""
+    """AJAX endpoint: analyze uploaded image and generate editable description via Gemini API."""
     try:
         payload = json.loads(request.body)
         photo_data = payload.get("photo_data", "")
@@ -111,12 +112,70 @@ def analyze_photo(request):
     if not photo_data:
         return JsonResponse({"error": "Photo data is required"}, status=400)
 
-    result = _services["photo_ai"].analyze_photo_data(photo_data, photo_name=photo_name)
-    return JsonResponse({
-        "success": True,
-        "analysis": result,
-        "auto_description": result.get("Auto Description", ""),
-    })
+    try:
+        result = _services["photo_ai"].analyze_photo_data(photo_data, photo_name=photo_name)
+        return JsonResponse({
+            "success": True,
+            "analysis": result,
+            "auto_description": result.get("Auto Description", ""),
+        })
+    except Exception as exc:
+        logger.warning("Image analysis error: %s", exc)
+        exc_str = str(exc)
+        is_quota = "429" in exc_str or "quota" in exc_str.lower() or "rate" in exc_str.lower()
+        retry_match = re.search(r"Please retry in ([\d.]+s)", exc_str)
+        retry_in = retry_match.group(1) if retry_match else None
+        if is_quota:
+            retry_hint = f" Please retry in {retry_in}." if retry_in else ""
+            user_message = (
+                f"AI photo analysis is temporarily unavailable \u2014 API quota limit reached.{retry_hint} "
+                "Or please describe the issue manually in the field above."
+            )
+        else:
+            user_message = f"AI photo analysis failed: {exc_str}"
+        error_response = {
+            "success": False,
+            "error": user_message,
+            "ai_quota_error": is_quota,
+        }
+        if retry_in:
+            error_response["retry_in"] = retry_in
+        return JsonResponse(error_response, status=400)
+
+
+def _reconcile_analysis(description: str, photo_ai_analysis: dict = None) -> dict:
+    """Reconciles text description analysis with photo AI classification results.
+
+    Raises on any AI failure — callers must catch and return a proper error response.
+    No silent guessing or preset fallbacks are used.
+    """
+    ai_engine = _services["ai"]
+
+    # If a valid, non-error photo AI result is available, prefer it
+    if (
+        photo_ai_analysis
+        and isinstance(photo_ai_analysis, dict)
+        and photo_ai_analysis.get("Issue")
+        and not photo_ai_analysis.get("ai_quota_error")
+    ):
+        return {
+            "Issue": photo_ai_analysis["Issue"],
+            "Priority": photo_ai_analysis["Priority"],
+            "Department": photo_ai_analysis["Department"],
+            "Confidence": photo_ai_analysis["Confidence"],
+            "Risk Score": photo_ai_analysis["Risk Score"],
+            "Reason": photo_ai_analysis["Reason"],
+            "Suggested Action": photo_ai_analysis["Suggested Action"],
+            "Advice": photo_ai_analysis["Advice"],
+        }
+
+    # Fall through to text-based Gemini AI — raises on failure, no keyword guessing
+    if not description:
+        raise ValueError(
+            "A description or valid photo analysis is required to classify this report. "
+            "AI photo analysis may have failed — please describe the issue manually."
+        )
+    return ai_engine.analyze(description)
 
 
 @csrf_exempt
@@ -149,27 +208,14 @@ def preview_analysis(request):
     db         = _services["db"]
     detector   = _services["detector"]
     protection = _services["protection"]
-    ai         = _services["ai"]
     hotspot    = _services["hotspot"]
 
     duplicate = detector.find_duplicate(description, location, db.get_reports())
-
-    if isinstance(photo_ai_analysis, dict) and photo_ai_analysis.get("Issue"):
-        result = {
-            "Issue": photo_ai_analysis.get("Issue", "General Civic Issue"),
-            "Priority": photo_ai_analysis.get("Priority", "Low"),
-            "Department": photo_ai_analysis.get("Department", "Municipal Corporation"),
-            "Confidence": photo_ai_analysis.get("Confidence", "Low"),
-            "Risk Score": photo_ai_analysis.get("Risk Score", 30),
-            "Reason": photo_ai_analysis.get("Reason", "Detected from uploaded image."),
-            "Suggested Action": photo_ai_analysis.get(
-                "Suggested Action",
-                "Manual inspection by local authorities recommended.",
-            ),
-            "Advice": photo_ai_analysis.get("Advice", "Please provide additional details if possible."),
-        }
-    else:
-        result = ai.analyze(description)
+    
+    try:
+        result = _reconcile_analysis(description, photo_ai_analysis)
+    except Exception as exc:
+        return JsonResponse({"error": f"Gemini AI Analysis Error: {str(exc)}"}, status=400)
 
     secure_report = protection.anonymize_report(description, location)
     hotspot_data = hotspot.analyze(secure_report["location"])
@@ -218,7 +264,6 @@ def submit_report(request):
     db         = _services["db"]
     detector   = _services["detector"]
     protection = _services["protection"]
-    ai         = _services["ai"]
     memory     = _services["memory"]
     hotspot    = _services["hotspot"]
 
@@ -249,22 +294,7 @@ def submit_report(request):
             })
 
     # --- AI classification ---
-    if isinstance(photo_ai_analysis, dict) and photo_ai_analysis.get("Issue"):
-        result = {
-            "Issue": photo_ai_analysis.get("Issue", "General Civic Issue"),
-            "Priority": photo_ai_analysis.get("Priority", "Low"),
-            "Department": photo_ai_analysis.get("Department", "Municipal Corporation"),
-            "Confidence": photo_ai_analysis.get("Confidence", "Low"),
-            "Risk Score": photo_ai_analysis.get("Risk Score", 30),
-            "Reason": photo_ai_analysis.get("Reason", "Detected from uploaded image."),
-            "Suggested Action": photo_ai_analysis.get(
-                "Suggested Action",
-                "Manual inspection by local authorities recommended.",
-            ),
-            "Advice": photo_ai_analysis.get("Advice", "Please provide additional details if possible."),
-        }
-    else:
-        result = ai.analyze(description)
+    result = _reconcile_analysis(description, photo_ai_analysis)
 
     # Incorporate citizen verification feedback
     result["ai_correct"] = bool(ai_correct)

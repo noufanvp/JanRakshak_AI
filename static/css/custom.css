@@ -883,9 +883,9 @@ textarea:focus-visible {
 }
 
 .report-card-ai-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.75rem 0.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
 }
 
 .report-card-ai-label {
@@ -1080,4 +1080,20 @@ textarea:focus-visible {
 
 .nav-link:active {
   transform: scale(0.96);
+}
+
+/* Custom scrollbar for modal dialogs */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: #F1F5F9;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #CBD5E1;
+  border-radius: 4px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #0E7490;
 }
