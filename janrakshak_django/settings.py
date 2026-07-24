@@ -32,9 +32,17 @@ DEBUG = os.environ.get("DJANGO_DEBUG", "False") == "True"
 
 ALLOWED_HOSTS = [
     h.strip()
-    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
+    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.onrender.com").split(",")
     if h.strip()
 ]
+
+# Support Render external hostname dynamically
+_render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
+if _render_host and _render_host not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(_render_host)
+
+if ".onrender.com" not in ALLOWED_HOSTS:
+    ALLOWED_HOSTS.append(".onrender.com")
 
 # ===========================================================================
 # INSTALLED APPS
@@ -79,7 +87,16 @@ _cors_origins = os.environ.get(
     "http://localhost:3000,http://127.0.0.1:8000"
 )
 CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
-CSRF_TRUSTED_ORIGINS = CORS_ALLOWED_ORIGINS
+if _render_host:
+    _render_origin = f"https://{_render_host}"
+    if _render_origin not in CORS_ALLOWED_ORIGINS:
+        CORS_ALLOWED_ORIGINS.append(_render_origin)
+
+CSRF_TRUSTED_ORIGINS = list(set(
+    CORS_ALLOWED_ORIGINS +
+    ["https://*.onrender.com"] +
+    ([f"https://{_render_host}"] if _render_host else [])
+))
 
 # ===========================================================================
 # SECURITY HEADERS (production only)
