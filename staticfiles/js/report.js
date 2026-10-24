@@ -163,6 +163,21 @@ const ReportForm = (() => {
         options
       );
     });
+
+    // Automatically sync Full Location Description whenever Place, Street, District, or State changes
+    const locInputIds = [
+      "field-location-place",
+      "field-location-street",
+      "field-location-district",
+      "field-location-state"
+    ];
+    locInputIds.forEach((id) => {
+      const el = document.getElementById(id);
+      if (el) {
+        el.addEventListener("input", () => syncFullLocationDescription());
+        el.addEventListener("change", () => syncFullLocationDescription());
+      }
+    });
   }
 
   async function reverseGeocode(latitude, longitude) {
@@ -217,25 +232,21 @@ const ReportForm = (() => {
       }
       if (state) fullLocationParts.push(state);
       
-      let fullLocationText = fullLocationParts.join(", ");
       if (postcode) {
-        fullLocationText += ` - ${postcode}`;
+        lastCapturedPostcode = postcode;
       }
 
       const placeInput = document.getElementById("field-location-place");
       const streetInput = document.getElementById("field-location-street");
       const districtInput = document.getElementById("field-location-district");
       const stateInput = document.getElementById("field-location-state");
-      const fullInput = document.getElementById("field-location");
 
-      if (placeInput && !placeInput.value.trim()) placeInput.value = placeAndArea || city || "";
-      if (streetInput && !streetInput.value.trim()) streetInput.value = streetAndLandmark || "Local Area";
-      if (districtInput && !districtInput.value.trim()) districtInput.value = district || city || "";
-      if (stateInput && !stateInput.value.trim()) stateInput.value = state || "";
+      if (placeInput) placeInput.value = placeAndArea || city || "";
+      if (streetInput) streetInput.value = streetAndLandmark || "Local Area";
+      if (districtInput) districtInput.value = district || city || "";
+      if (stateInput) stateInput.value = state || "";
 
-      if (fullInput && !fullInput.value.trim()) {
-        fullInput.value = fullLocationText || `${latitude.toFixed(6)}, ${longitude.toFixed(6)}`;
-      }
+      syncFullLocationDescription();
 
       if (placeAndArea || streetAndLandmark) {
         JR.toast("Location details fetched automatically.", "success");
@@ -248,7 +259,40 @@ const ReportForm = (() => {
     }
   }
 
+  let lastCapturedPostcode = "";
+
+  function syncFullLocationDescription() {
+    const placeInput = document.getElementById("field-location-place");
+    const streetInput = document.getElementById("field-location-street");
+    const districtInput = document.getElementById("field-location-district");
+    const stateInput = document.getElementById("field-location-state");
+    const fullInput = document.getElementById("field-location");
+    if (!fullInput) return;
+
+    const parts = [];
+    const street = streetInput ? streetInput.value.trim() : "";
+    const place = placeInput ? placeInput.value.trim() : "";
+    const district = districtInput ? districtInput.value.trim() : "";
+    const state = stateInput ? stateInput.value.trim() : "";
+
+    if (street) parts.push(street);
+    if (place && place !== street) parts.push(place);
+    if (district && district !== place && district !== street) parts.push(district);
+    if (state && state !== district) parts.push(state);
+
+    if (parts.length > 0) {
+      let text = parts.join(", ");
+      if (lastCapturedPostcode) {
+        text += ` - ${lastCapturedPostcode}`;
+      }
+      fullInput.value = text;
+    }
+  }
+
   function updateLocationDetails(latitude, longitude, clearInputs = true) {
+    if (clearInputs) {
+      lastCapturedPostcode = "";
+    }
     capturedCoords = {
       latitude: latitude,
       longitude: longitude,
