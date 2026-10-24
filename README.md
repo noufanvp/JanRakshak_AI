@@ -24,13 +24,13 @@ Citizens photograph or describe a civic problem (pothole, water leak, garbage, e
 
 ## Tech Stack
 
-- **Backend:** Django 4.2, Python 3.11, Gunicorn
+- **Backend:** Django 4.2, Python 3.12, Vercel Python Functions
 - **Database:** PostgreSQL (production) / SQLite (development)
 - **Image Storage:** Cloudinary free tier
 - **AI:** Google Gemini 1.5 Flash API + offline keyword classifier fallback
 - **Frontend:** Tailwind CSS (CDN), Chart.js, GSAP animations
 - **PWA:** Service Worker, Web App Manifest, offline caching
-- **Hosting:** Render.com (free tier)
+- **Hosting:** Vercel
 
 ---
 
@@ -40,10 +40,9 @@ Citizens photograph or describe a civic problem (pothole, water leak, garbage, e
 CivicAI_India/               ← Repository root
 ├── manage.py                ← Django management script
 ├── requirements.txt         ← Python dependencies
-├── Procfile                 ← Gunicorn start command
-├── render.yaml              ← Render.com deployment config
-├── gunicorn_config.py       ← Production server configuration
-├── runtime.txt              ← Python version pin
+├── pyproject.toml           ← Vercel Python runtime and Django entrypoint
+├── .python-version          ← Python version used by Vercel
+├── .vercelignore            ← Excludes local-only files from deployment
 ├── .env.example             ← Environment variable template
 │
 ├── janrakshak_django/       ← Django settings package
@@ -84,7 +83,7 @@ CivicAI_India/               ← Repository root
 ## Local Development
 
 ### Prerequisites
-- Python 3.11+
+- Python 3.12+
 - Git
 
 ### Setup
@@ -95,7 +94,7 @@ git clone https://github.com/YOUR_USERNAME/CivicAI_India.git
 cd CivicAI_India
 
 # 2. Create and activate virtual environment
-python3 -m venv .venv
+python3.12 -m venv .venv
 source .venv/bin/activate        # Linux/Mac
 # .venv\Scripts\activate         # Windows
 
@@ -115,16 +114,58 @@ GEMINI_API_KEY=your-gemini-api-key   # optional — offline AI works without it
 
 ```bash
 # 5. Run database migrations
-python3 manage.py migrate
+python manage.py migrate
 
 # 6. Create an admin superuser (for /django-admin/)
-python3 manage.py createsuperuser
+python manage.py createsuperuser
 
 # 7. Start the development server
-python3 manage.py runserver
+python manage.py runserver
 ```
 
 Open **http://127.0.0.1:8000** in your browser.
+
+## Deploy to Vercel
+
+Vercel runs this Django project as Python Functions and serves collected static
+files through its CDN. Connect this Git repository in Vercel and keep the
+project root as the repository root; the Django WSGI entrypoint and Python
+version are defined in `pyproject.toml` and `.python-version`.
+
+Before the first deployment, configure these Vercel environment variables for
+Production (and Preview if you deploy preview builds):
+
+| Variable | Required | Description |
+|---|---|---|
+| `DJANGO_SECRET_KEY` | Yes | A unique, long random secret. Never use the local development value. |
+| `DJANGO_ALLOWED_HOSTS` | Recommended | Comma-separated custom domains. Vercel deployment hostnames are detected automatically. |
+| `DATABASE_URL` | Yes | Connection URL for a persistent PostgreSQL database; use the provider's pooled URL if available. |
+| `ADMIN_PANEL_USERNAME` | Yes | Custom admin-panel login username. |
+| `ADMIN_PANEL_PASSWORD` | Yes | Strong custom admin-panel password. |
+| `CLOUDINARY_URL` | Yes | Cloudinary URL for persistent report-photo storage. |
+| `GEMINI_API_KEY` | No | Enables Gemini photo and text analysis. |
+| `CORS_ALLOWED_ORIGINS` | Optional | Comma-separated origins when the browser frontend is hosted separately. |
+| `CSRF_TRUSTED_ORIGINS` | Optional | Comma-separated HTTPS origins for custom domains or external frontends. |
+
+Vercel's local filesystem is temporary, so SQLite, local photo uploads, and
+local audit logs are not persistent there. The app refuses to start on Vercel
+without a persistent PostgreSQL URL, Cloudinary storage, and custom admin
+credentials. Audit and Django log files are written under `/tmp`; Vercel
+function logs are the durable operational log source.
+Photo uploads are limited to 3 MB so their Base64-encoded JSON requests stay
+within Vercel Function request-body limits.
+
+After configuring the environment variables, deploy from the Vercel dashboard
+or CLI. Apply database migrations once using the same production
+`DATABASE_URL` before opening the live site:
+
+```bash
+python manage.py migrate
+```
+
+For local migration commands, pull the Vercel environment first with
+`vercel env pull .env.local` and load those variables in your shell. Do not
+commit `.env.local`.
 
 ### Key URLs
 

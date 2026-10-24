@@ -1,0 +1,7 @@
+[project]
+name = "janrakshak-ai"
+version = "0.1.0"
+requires-python = ">=3.12,<3.13"
+
+[tool.vercel]
+entrypoint = "janrakshak_django.wsgi:application"

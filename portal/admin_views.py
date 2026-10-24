@@ -152,7 +152,9 @@ def admin_login(request):
     if request.method == "POST":
         username = request.POST.get("username", "").strip()
         password = request.POST.get("password", "")
-        if (username == settings.ADMIN_PANEL_USERNAME
+        if (settings.ADMIN_PANEL_USERNAME
+                and settings.ADMIN_PANEL_PASSWORD
+                and username == settings.ADMIN_PANEL_USERNAME
                 and password == settings.ADMIN_PANEL_PASSWORD):
             request.session["admin_logged_in"] = True
             request.session["admin_username"] = username
@@ -371,4 +373,3 @@ def api_report_detail(request, report_id):
         return JsonResponse({"error": "Not found"}, status=404)
     except Exception as e:
         return JsonResponse({"error": str(e)}, status=500)
-

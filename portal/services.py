@@ -13,6 +13,7 @@ import hashlib
 import logging
 import datetime
 import colorsys
+import os
 from pathlib import Path
 from collections import defaultdict
 
@@ -22,7 +23,11 @@ logger = logging.getLogger(__name__)
 # Paths (for audit log only — DB is handled by Django ORM)
 # ---------------------------------------------------------------------------
 _HERE = Path(__file__).resolve().parent.parent   # JanRakshak_AI/
-AUDIT_LOG_PATH = _HERE / "data" / "audit.log"
+AUDIT_LOG_PATH = (
+    Path("/tmp/janrakshak_audit.log")
+    if os.environ.get("VERCEL") == "1"
+    else _HERE / "data" / "audit.log"
+)
 AUDIT_LOG_PATH.parent.mkdir(parents=True, exist_ok=True)
 
 

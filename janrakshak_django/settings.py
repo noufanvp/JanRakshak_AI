@@ -7,6 +7,7 @@ Supports: PostgreSQL, Cloudinary image storage, Google Gemini AI, Error tracking
 from pathlib import Path
 import os
 import sys
+from django.core.exceptions import ImproperlyConfigured
 
 # Load .env file if present (development convenience)
 try:
@@ -18,33 +19,31 @@ except ImportError:
 # ===========================================================================
 # PATHS
 # ===========================================================================
-BASE_DIR = Path(__file__).resolve().parent.parent  # JanRakshak_AI/
+BASE_DIR = Path(__file__).resolve().parent.parent  # CivicAI_India/
+IS_VERCEL = os.environ.get("VERCEL") == "1"
 
 # ===========================================================================
 # SECURITY & ENVIRONMENT
 # ===========================================================================
-SECRET_KEY = os.environ.get(
-    "DJANGO_SECRET_KEY",
-    "django-insecure-janrakshak-dev-key-CHANGE-IN-PRODUCTION-2026"
-)
-
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
-
-DEBUG = os.environ.get("DJANGO_DEBUG", "True").lower() in ("true", "1", "yes")
+DEBUG = os.environ.get("DJANGO_DEBUG", "False").lower() in ("true", "1", "yes")
+SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "")
+if not SECRET_KEY:
+    if not DEBUG:
+        raise ImproperlyConfigured("Set DJANGO_SECRET_KEY in the environment.")
+    SECRET_KEY = "django-insecure-local-development-only"
 
 ALLOWED_HOSTS = [
     h.strip()
-    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1,.onrender.com").split(",")
+    for h in os.environ.get("DJANGO_ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
     if h.strip()
 ]
 
-# Support Render external hostname dynamically
-_render_host = os.environ.get("RENDER_EXTERNAL_HOSTNAME")
-if _render_host and _render_host not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(_render_host)
-
-if ".onrender.com" not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(".onrender.com")
+for _vercel_host in (
+    os.environ.get("VERCEL_URL"),
+    os.environ.get("VERCEL_PROJECT_PRODUCTION_URL"),
+):
+    if _vercel_host and _vercel_host not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(_vercel_host)
 
 # ===========================================================================
 # INSTALLED APPS
@@ -86,26 +85,29 @@ MIDDLEWARE = [
 # ===========================================================================
 _cors_origins = os.environ.get(
     "CORS_ALLOWED_ORIGINS",
-    "http://localhost:3000,http://127.0.0.1:8000,http://localhost:8000,http://127.0.0.1:8081"
+    "http://localhost:3000,http://127.0.0.1:8000"
 )
 CORS_ALLOWED_ORIGINS = [o.strip() for o in _cors_origins.split(",") if o.strip()]
-if _render_host:
-    _render_origin = f"https://{_render_host}"
-    if _render_origin not in CORS_ALLOWED_ORIGINS:
-        CORS_ALLOWED_ORIGINS.append(_render_origin)
+for _vercel_host in (
+    os.environ.get("VERCEL_URL"),
+    os.environ.get("VERCEL_PROJECT_PRODUCTION_URL"),
+):
+    if _vercel_host:
+        _vercel_origin = f"https://{_vercel_host}"
+        if _vercel_origin not in CORS_ALLOWED_ORIGINS:
+            CORS_ALLOWED_ORIGINS.append(_vercel_origin)
 
-CSRF_TRUSTED_ORIGINS = list(set(
-    CORS_ALLOWED_ORIGINS +
-    ["https://*.onrender.com"] +
-    ([f"https://{_render_host}"] if _render_host else [])
-))
+CSRF_TRUSTED_ORIGINS = list({
+    origin.strip()
+    for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+} | set(CORS_ALLOWED_ORIGINS))
 
 # ===========================================================================
 # SECURITY HEADERS (production only)
 # ===========================================================================
-_IS_RUNSERVER = any("runserver" in arg for arg in sys.argv)
-if not DEBUG and not _IS_RUNSERVER:
-    SECURE_SSL_REDIRECT = os.environ.get("DJANGO_SECURE_SSL_REDIRECT", "True") == "True"
+if not DEBUG:
+    SECURE_SSL_REDIRECT = True
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_HSTS_SECONDS = 31536000
@@ -113,9 +115,6 @@ if not DEBUG and not _IS_RUNSERVER:
     SECURE_HSTS_PRELOAD = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
-else:
-    SECURE_SSL_REDIRECT = False
-
 
 # ===========================================================================
 # DATABASE — PostgreSQL in production, SQLite for local dev
@@ -125,11 +124,15 @@ if os.environ.get("DATABASE_URL"):
     DATABASES = {
         "default": dj_database_url.config(
             default=os.environ["DATABASE_URL"],
-            conn_max_age=600,
+            conn_max_age=0 if IS_VERCEL else 600,
             conn_health_checks=True,
         )
     }
 else:
+    if IS_VERCEL:
+        raise ImproperlyConfigured(
+            "Set DATABASE_URL to a persistent PostgreSQL database for Vercel."
+        )
     DATABASES = {
         "default": {
             "ENGINE": "django.db.backends.sqlite3",
@@ -200,7 +203,7 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 # ===========================================================================
 # MEDIA / IMAGE UPLOADS
 # Cloudinary free tier is used when CLOUDINARY_URL env var is set.
-# Falls back to local filesystem (ephemeral on Render free tier).
+# Falls back to local filesystem for development; Vercel requires persistent storage.
 # ===========================================================================
 CLOUDINARY_STORAGE = {
     "CLOUD_NAME": os.environ.get("CLOUDINARY_CLOUD_NAME", ""),
@@ -212,6 +215,10 @@ if os.environ.get("CLOUDINARY_URL") or os.environ.get("CLOUDINARY_CLOUD_NAME"):
     DEFAULT_FILE_STORAGE = "cloudinary_storage.storage.MediaCloudinaryStorage"
     MEDIA_URL = "/media/"
 else:
+    if IS_VERCEL:
+        raise ImproperlyConfigured(
+            "Configure CLOUDINARY_URL for persistent report-photo storage on Vercel."
+        )
     DEFAULT_FILE_STORAGE = "django.core.files.storage.FileSystemStorage"
     MEDIA_URL = "/media/"
     MEDIA_ROOT = BASE_DIR / "media"
@@ -234,8 +241,12 @@ REST_FRAMEWORK = {
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "")
 
 # Custom admin panel credentials (separate from Django /django-admin/)
-ADMIN_PANEL_USERNAME = os.environ.get("ADMIN_PANEL_USERNAME", "admin")
-ADMIN_PANEL_PASSWORD = os.environ.get("ADMIN_PANEL_PASSWORD", "janrakshak@2026")
+ADMIN_PANEL_USERNAME = os.environ.get("ADMIN_PANEL_USERNAME", "")
+ADMIN_PANEL_PASSWORD = os.environ.get("ADMIN_PANEL_PASSWORD", "")
+if IS_VERCEL and (not ADMIN_PANEL_USERNAME or not ADMIN_PANEL_PASSWORD):
+    raise ImproperlyConfigured(
+        "Set ADMIN_PANEL_USERNAME and ADMIN_PANEL_PASSWORD before deploying to Vercel."
+    )
 
 # Email (optional — used for future notifications)
 EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
@@ -249,7 +260,7 @@ DEFAULT_FROM_EMAIL = os.environ.get("DEFAULT_FROM_EMAIL", "noreply@civicai.in")
 # ===========================================================================
 # LOGGING
 # ===========================================================================
-_LOG_DIR = BASE_DIR / "logs"
+_LOG_DIR = Path("/tmp/janrakshak_logs") if IS_VERCEL else BASE_DIR / "logs"
 _LOG_DIR.mkdir(exist_ok=True)
 
 LOGGING = {
@@ -311,4 +322,3 @@ CACHES = {
 
 if DEBUG:
     INTERNAL_IPS = ["127.0.0.1"]
-

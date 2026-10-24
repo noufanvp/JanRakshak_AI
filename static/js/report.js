@@ -15,6 +15,7 @@
 const ReportForm = (() => {
   let currentStep = 1;
   const TOTAL_STEPS = 3;
+  const MAX_PHOTO_BYTES = 3 * 1024 * 1024;
 
   // Captured data
   let capturedCoords = null;    // { latitude, longitude, accuracy }
@@ -27,6 +28,12 @@ const ReportForm = (() => {
   let mediaStream = null;       // Active camera stream (must be stopped after capture)
   let mapInstance = null;
   let mapMarker = null;
+
+  function getPhotoDataSize(dataUrl) {
+    const base64 = dataUrl.slice(dataUrl.indexOf(",") + 1);
+    const padding = base64.endsWith("==") ? 2 : base64.endsWith("=") ? 1 : 0;
+    return Math.floor((base64.length * 3) / 4) - padding;
+  }
 
   // ==========================================================================
   // 1. STEP WIZARD
@@ -448,8 +455,8 @@ const ReportForm = (() => {
         JR.toast("Please select a valid image file.", "warning");
         return;
       }
-      if (file.size > 10 * 1024 * 1024) {
-        JR.toast("Photo size exceeds 10MB.", "warning");
+      if (file.size > MAX_PHOTO_BYTES) {
+        JR.toast("Photo size exceeds 3MB.", "warning");
         return;
       }
 
@@ -619,14 +626,21 @@ const ReportForm = (() => {
     captureBtn.addEventListener("click", () => {
       if (!mediaStream) return;
 
-      // Draw current video frame onto canvas
       const ctx = canvasEl.getContext("2d");
-      canvasEl.width = videoEl.videoWidth;
-      canvasEl.height = videoEl.videoHeight;
-      ctx.drawImage(videoEl, 0, 0);
-
-      // Convert canvas to data URL (JPEG, 85% quality)
-      capturedPhotoDataUrl = canvasEl.toDataURL("image/jpeg", 0.85);
+      let scale = Math.min(1, 1600 / Math.max(videoEl.videoWidth, videoEl.videoHeight));
+      for (let attempt = 0; attempt < 6; attempt += 1) {
+        canvasEl.width = Math.round(videoEl.videoWidth * scale);
+        canvasEl.height = Math.round(videoEl.videoHeight * scale);
+        ctx.drawImage(videoEl, 0, 0, canvasEl.width, canvasEl.height);
+        capturedPhotoDataUrl = canvasEl.toDataURL("image/jpeg", 0.75);
+        if (getPhotoDataSize(capturedPhotoDataUrl) <= MAX_PHOTO_BYTES) break;
+        scale *= 0.8;
+      }
+      if (getPhotoDataSize(capturedPhotoDataUrl) > MAX_PHOTO_BYTES) {
+        capturedPhotoDataUrl = null;
+        JR.toast("Could not compress the captured photo below 3MB.", "warning");
+        return;
+      }
 
       // Also prepare a Blob for potential FormData upload
       canvasEl.toBlob(
