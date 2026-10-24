@@ -80,3 +80,5 @@ htmlcov/
 # ===================================
 *.mo
 *.pot
+.neon
+node_modules/
