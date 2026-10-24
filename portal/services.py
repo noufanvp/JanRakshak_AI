@@ -378,39 +378,57 @@ def _gemini_post(
         "x-goog-api-key": api_key,
     }
 
+    # Primary and fallback models for high availability and low latency
+    candidate_models = ["gemini-flash-lite-latest", "gemini-2.5-flash-lite", "gemini-flash-latest"]
+    last_response = None
     last_exception = None
 
-    for attempt in range(retries + 1):
+    for model_name in candidate_models:
+        target_url = f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent"
+        for attempt in range(retries + 1):
+            try:
+                response = requests_module.post(
+                    target_url,
+                    json=payload,
+                    headers=headers,
+                    timeout=(10, 45),
+                )
+                last_response = response
+                if response.status_code == 200:
+                    return response
+                elif response.status_code in (503, 500, 429):
+                    logger.warning(
+                        "Gemini model %s returned status %s on attempt %s, checking fallbacks...",
+                        model_name,
+                        response.status_code,
+                        attempt + 1,
+                    )
+                    if attempt < retries:
+                        time.sleep(1)
+                        continue
+                    break  # Try next candidate model
+                else:
+                    return response
+            except (
+                requests_module.exceptions.Timeout,
+                requests_module.exceptions.ConnectionError,
+            ) as exc:
+                last_exception = exc
+                logger.warning(
+                    "Gemini request %s timed out/failed on attempt %s/%s: %s",
+                    model_name,
+                    attempt + 1,
+                    retries + 1,
+                    exc,
+                )
+                if attempt < retries:
+                    time.sleep(1)
 
-        try:
-
-            response = requests_module.post(
-                url,
-                json=payload,
-                headers=headers,
-                timeout=(10, 90),
-            )
-
-            return response
-
-        except (
-            requests_module.exceptions.Timeout,
-            requests_module.exceptions.ConnectionError,
-        ) as exc:
-
-            last_exception = exc
-
-            logger.warning(
-                "Gemini request failed on attempt %s/%s: %s",
-                attempt + 1,
-                retries + 1,
-                exc,
-            )
-
-            if attempt < retries:
-                time.sleep(2)
-
-    raise last_exception
+    if last_response is not None:
+        return last_response
+    if last_exception is not None:
+        raise last_exception
+    raise RuntimeError("Gemini API call failed across all candidate models.")
 
 
 # ===========================================================================
@@ -456,7 +474,7 @@ class AIEngine:
 
             url = (
                 "https://generativelanguage.googleapis.com/"
-                "v1beta/models/gemini-flash-latest:generateContent"
+                "v1beta/models/gemini-flash-lite-latest:generateContent"
             )
 
             prompt = (
@@ -981,62 +999,25 @@ class PhotoAnalyzer:
                 b64 = photo_data
                 mime_type = "image/jpeg"
 
-            # Gemini supported image formats.
-            supported_mimes = {
-                "image/jpeg",
-                "image/png",
-                "image/webp",
-            }
+            # Fast-optimize image: resize to max 1024px to dramatically speed up upload and AI vision processing
+            try:
+                img_bytes = base64.b64decode(b64)
+                img = Image.open(io.BytesIO(img_bytes))
+                if img.mode in ("RGBA", "P"):
+                    img = img.convert("RGB")
+                if max(img.size) > 1024:
+                    img.thumbnail((1024, 1024), Image.Resampling.LANCZOS)
+                buffer = io.BytesIO()
+                img.save(buffer, format="JPEG", quality=82, optimize=True)
+                b64 = base64.b64encode(buffer.getvalue()).decode("utf-8")
+                mime_type = "image/jpeg"
+            except Exception as opt_err:
+                logger.warning("Image optimization fallback: %s", opt_err)
 
-            if mime_type not in supported_mimes:
-
-                try:
-
-                    img_bytes = base64.b64decode(
-                        b64
-                    )
-
-                    img = Image.open(
-                        io.BytesIO(img_bytes)
-                    )
-
-                    if img.mode in (
-                        "RGBA",
-                        "P"
-                    ):
-
-                        img = img.convert(
-                            "RGB"
-                        )
-
-                    buffer = io.BytesIO()
-
-                    img.save(
-                        buffer,
-                        format="JPEG",
-                        quality=85
-                    )
-
-                    b64 = base64.b64encode(
-                        buffer.getvalue()
-                    ).decode("utf-8")
-
-                    mime_type = "image/jpeg"
-
-                except Exception as conv_err:
-
-                    logger.warning(
-                        "Could not convert %s image to JPEG: %s",
-                        mime_type,
-                        conv_err
-                    )
-
-                    mime_type = "image/jpeg"
-
-            # Gemini endpoint.
+            # Gemini endpoint (flash-lite for instant response, fallbacks handled by _gemini_post)
             url = (
                 "https://generativelanguage.googleapis.com/"
-                "v1beta/models/gemini-flash-latest:generateContent"
+                "v1beta/models/gemini-flash-lite-latest:generateContent"
             )
 
             prompt = (

@@ -333,9 +333,9 @@ const ReportForm = (() => {
             attributionControl: true
           }).setView([latitude, longitude], 15);
 
-          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
             maxZoom: 19,
-            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, USGS, DeLorme, TomTom'
           }).addTo(mapInstance);
 
           mapMarker = L.marker([latitude, longitude], {
@@ -515,6 +515,38 @@ const ReportForm = (() => {
     }
   }
 
+  function compressImageForAI(dataUrl, maxDimension = 1024, quality = 0.82) {
+    return new Promise((resolve) => {
+      if (!dataUrl || !dataUrl.startsWith("data:image/")) {
+        return resolve(dataUrl);
+      }
+      const img = new Image();
+      img.onload = () => {
+        let { width, height } = img;
+        if (width <= maxDimension && height <= maxDimension && dataUrl.length < 200000) {
+          return resolve(dataUrl);
+        }
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = Math.round((height * maxDimension) / width);
+            width = maxDimension;
+          } else {
+            width = Math.round((width * maxDimension) / height);
+            height = maxDimension;
+          }
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, width, height);
+        resolve(canvas.toDataURL("image/jpeg", quality));
+      };
+      img.onerror = () => resolve(dataUrl);
+      img.src = dataUrl;
+    });
+  }
+
   async function analyzeUploadedPhoto(photoDataUrl) {
     const aiScanOverlay = document.getElementById("ai-scan-overlay");
     if (aiScanOverlay) {
@@ -523,6 +555,8 @@ const ReportForm = (() => {
     updateDescriptionStatus("Analyzing uploaded image with Gemini AI Vision...", "info");
     const scanStartTime = Date.now();
     try {
+      // Compress to 1024px JPEG on client canvas for instant network upload & fast AI processing
+      const optimizedPhotoData = await compressImageForAI(photoDataUrl);
       const response = await fetch("/api/analyze-photo/", {
         method: "POST",
         headers: {
@@ -530,7 +564,7 @@ const ReportForm = (() => {
           "X-CSRFToken": getCsrfToken(),
         },
         body: JSON.stringify({
-          photo_data: photoDataUrl,
+          photo_data: optimizedPhotoData,
           photo_name: uploadedPhotoFileName
         }),
       });
