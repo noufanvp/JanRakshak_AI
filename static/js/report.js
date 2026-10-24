@@ -286,6 +286,8 @@ const ReportForm = (() => {
         text += ` - ${lastCapturedPostcode}`;
       }
       fullInput.value = text;
+    } else {
+      fullInput.value = "";
     }
   }
 
