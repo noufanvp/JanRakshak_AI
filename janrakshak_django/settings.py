@@ -38,6 +38,13 @@ ALLOWED_HOSTS = [
     if h.strip()
 ]
 
+# Automatically allow Vercel domains (preview & production)
+if IS_VERCEL or os.environ.get("VERCEL") or os.environ.get("VERCEL_URL"):
+    if ".vercel.app" not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(".vercel.app")
+    if ".now.sh" not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(".now.sh")
+
 for _vercel_host in (
     os.environ.get("VERCEL_URL"),
     os.environ.get("VERCEL_PROJECT_PRODUCTION_URL"),
@@ -102,6 +109,11 @@ CSRF_TRUSTED_ORIGINS = list({
     for origin in os.environ.get("CSRF_TRUSTED_ORIGINS", "").split(",")
     if origin.strip()
 } | set(CORS_ALLOWED_ORIGINS))
+
+if IS_VERCEL or os.environ.get("VERCEL") or os.environ.get("VERCEL_URL"):
+    for _v_origin in ("https://*.vercel.app", "https://*.now.sh"):
+        if _v_origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(_v_origin)
 
 # ===========================================================================
 # SECURITY HEADERS (production only)
