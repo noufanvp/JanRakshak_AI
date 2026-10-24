@@ -33,7 +33,7 @@ ENV/
 # ===================================
 *.pyc
 db.sqlite3
-staticfiles/
+# staticfiles/ — committed to git so WhiteNoise can serve on Vercel (collectstatic runs locally)
 media/*
 !media/.gitkeep
 
