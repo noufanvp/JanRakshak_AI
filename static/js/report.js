@@ -329,14 +329,30 @@ const ReportForm = (() => {
 
         if (!mapInstance) {
           mapInstance = L.map("geo-map", {
-            zoomControl: false,
+            zoomControl: true,
             attributionControl: true
-          }).setView([latitude, longitude], 15);
+          }).setView([latitude, longitude], 16);
 
-          L.tileLayer("https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/tile/{z}/{y}/{x}", {
-            maxZoom: 19,
-            attribution: 'Tiles &copy; Esri &mdash; Source: Esri, USGS, DeLorme, TomTom'
-          }).addTo(mapInstance);
+          const googleStreets = L.tileLayer("https://{s}.google.com/vt/lyrs=m&x={x}&y={y}&z={z}", {
+            maxZoom: 20,
+            subdomains: ["mt0", "mt1", "mt2", "mt3"],
+            attribution: "&copy; Google Maps"
+          });
+
+          const googleHybrid = L.tileLayer("https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}", {
+            maxZoom: 20,
+            subdomains: ["mt0", "mt1", "mt2", "mt3"],
+            attribution: "&copy; Google Maps Satellite"
+          });
+
+          // Add Google Streets by default (highest road accuracy in Kerala)
+          googleStreets.addTo(mapInstance);
+
+          // Allow citizen to toggle between Street map and Satellite view
+          L.control.layers({
+            "Roads": googleStreets,
+            "Satellite": googleHybrid
+          }, null, { position: "topright" }).addTo(mapInstance);
 
           mapMarker = L.marker([latitude, longitude], {
             draggable: true
@@ -355,7 +371,7 @@ const ReportForm = (() => {
             updateLocationDetails(lat, lng, true);
           });
         } else {
-          mapInstance.setView([latitude, longitude], 15);
+          mapInstance.setView([latitude, longitude], 16);
           mapMarker.setLatLng([latitude, longitude]);
         }
 
