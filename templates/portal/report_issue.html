@@ -112,13 +112,10 @@ flooding — with AI-powered triage and automatic department routing.{% endblock
                 </label>
                 <textarea id="field-description" name="description" class="form-textarea" rows="5"
                     placeholder="AI will auto-fill this from photo if uploaded. You can edit as needed."
-                    aria-describedby="description-hint description-count" maxlength="1000"
+                    aria-describedby="description-count" maxlength="1000"
                     required></textarea>
-                <div class="flex items-center justify-between mt-1.5">
-                    <p id="description-hint" class="text-xs text-slate-500">
-                        If you upload an image, AI drafts this description automatically. Please verify and edit.
-                    </p>
-                    <span id="description-count" class="text-xs text-slate-400 tabular-nums flex-shrink-0 ml-2" aria-live="polite">0/1000</span>
+                <div class="flex items-center justify-end mt-1.5">
+                    <span id="description-count" class="text-xs text-slate-400 tabular-nums flex-shrink-0 ml-auto" aria-live="polite">0/1000</span>
                 </div>
                 <p id="description-ai-status" class="mt-1 text-xs text-brand-primary hidden" aria-live="polite"></p>
             </div>
